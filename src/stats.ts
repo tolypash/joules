@@ -27,18 +27,13 @@ export type Stats = {
 };
 
 /**
- * Joules per weekday of the median full-time engineer before AI (Q4 2024, before Claude 3.7 and agentic
- * coding), measured by `joules calibrate` over our repos and public product repos. 100% is that engineer.
+ * Joules per weekday of full-time engineers, measured with `joules calibrate` (data/*.tsv; the test checks
+ * these against it). BASELINE: the median before AI (Q4 2024, before Claude 3.7 and agentic coding), so 100%
+ * is that engineer. GOOD: the median with AI (August to October 2026). GREAT: the top 10% with AI.
  */
 export const BASELINE = 8;
-
-/** Red up to 100% (no gain on pre-AI), yellow at 300%, green from 500%: heat, not a verdict. */
-/**
- * What full-time engineers ship a weekday today, with AI, at Twenty, Novu, Formbricks and Documenso (33 of
- * them, August to October 2026, `joules calibrate`): the median is good, the top 10% cracked.
- */
 export const GOOD = 45.6;
-export const GREAT = 101.6;
+export const GREAT = 117.4;
 
 /** Where someone sits against the pre-AI line (100%) and today's good and top-10% lines, all in %. */
 export function levelOf(efficiency: number, good: number, great: number): string {
@@ -164,7 +159,7 @@ ${o.note ? `<div class="note">${esc(o.note)}</div>` : ""}
 <div class="how">
 <div><b>Joules</b> is the value of the work (merged PRs, plus commits on branches with no PR): how long a senior engineer would need without AI × who it reaches (customers 3, the team 2, internal systems 1.5, only developers 1) × what it is (feature, fix or speed-up 1, refactor 0.7, tests 0.6, docs or chores 0.4, dependency bumps 0.3). Claude scores each PR; everything on this page is counted by plain code. A small fix is about 3 J, a solid feature 30 to 100 J.</div>
 <div><b>Typical day</b> is the middle value over the days someone shipped anything, so one huge day doesn't skew it. <b>Typical PR</b> is the same for single PRs.</div>
-<div><b>Efficiency</b> is Joules per weekday against a typical full-time engineer before AI: ${o.baseline} J a day, measured with <code>joules calibrate</code> on work from before Claude 3.7 and agentic coding${o.baseline === BASELINE ? " (the median of 39 full-time engineers on Twenty, Novu, Formbricks, Documenso and our own repos, Q4 2024)" : " (this team's own median)"}. <b>Good today is ${good}%</b> (${GOOD} J a day): what the typical full-time engineer at Twenty, Novu, Formbricks and Documenso ships with AI, August to October 2026. <b>Cracked is ${great}%</b> (${GREAT} J a day), their top 10%. Below 100% is below pre-AI; between 100% and ${good}% is below today's typical. Red is low, green good, purple cracked. Part-timers are measured against their own hours when marked part-time; people who also work in other repos read low.</div>
+<div><b>Efficiency</b> is Joules per weekday against a typical full-time engineer before AI: ${o.baseline} J a day, measured with <code>joules calibrate</code> on work from before Claude 3.7 and agentic coding${o.baseline === BASELINE ? " (the median of 39 full-time engineers on Twenty, Novu, Formbricks, Documenso and three of our own repos, Q4 2024)" : " (this team's own median)"}. <b>Good today is ${good}%</b> (${GOOD} J a day): what the typical full-time engineer at Twenty, Novu, Formbricks and Documenso ships with AI, August to October 2026. <b>Cracked is ${great}%</b> (${GREAT} J a day), their top 10%. Below 100% is below pre-AI; between 100% and ${good}% is below today's typical. Red is low, green good, purple cracked. Part-timers are measured against their own hours when marked part-time; people who also work in other repos read low.</div>
 <div><b>Needed a fix after</b>: PRs merged ${SETTLE_DAYS}+ days ago that were reverted or fixed again by a later PR pointing back at them. Lower is better; it only sees fixes that link the PR.</div>
 </div></body></html>`;
 }

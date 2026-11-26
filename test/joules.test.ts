@@ -1,10 +1,11 @@
+import { readFileSync } from "node:fs";
 import { expect, test } from "bun:test";
 import { readStamp, type Stamp, withStamp, withoutStamp } from "../src/block.ts";
 import { isRelease, type Pull } from "../src/github.ts";
 import { leaderboard, type Scored } from "../src/report.ts";
 import { joulesOf, parseRating } from "../src/score.ts";
 import { finalJoules, settlementOf } from "../src/settle.ts";
-import { statsOf } from "../src/stats.ts";
+import { BASELINE, GOOD, GREAT, statsOf } from "../src/stats.ts";
 import { ticketsIn } from "../src/tickets.ts";
 
 const stamp: Stamp = { v: 1, stage: "open", kind: "feature", reach: "customers", expert_hours: 12, summary: "Tips at checkout", reason: "Touches payments.", joules: 36, model: "haiku", scored_at: "2026-11-26T00:00:00Z" };
@@ -107,4 +108,21 @@ test("a PR that bundles an upgrade, a feature and a fix is scored part by part",
   );
   expect(r).toMatchObject({ kind: "feature", reach: "customers", expert_hours: 54 });
   expect(joulesOf(r)).toBe(54); // 40 × 1 × 0.3 + 12 × 3 + 2 × 3, where one kind for all would read 162
+});
+
+/** A percentile with linear interpolation between ranks. */
+const percentile = (xs: number[], p: number) => {
+  const s = [...xs].sort((a, b) => a - b);
+  const k = (s.length - 1) * p;
+  const lo = Math.floor(k);
+  const hi = Math.min(lo + 1, s.length - 1);
+  return Math.round((s[lo]! + (s[hi]! - s[lo]!) * (k - lo)) * 10) / 10;
+};
+const perWeekday = (file: string) =>
+  readFileSync(new URL(`../data/${file}`, import.meta.url), "utf8").trim().split("\n").slice(1).map((line) => Number(line.split("\t")[0]));
+
+test("the levels are the measured percentiles", () => {
+  expect(percentile(perWeekday("pre-ai-2024-q4.tsv"), 0.5)).toBe(BASELINE);
+  expect(percentile(perWeekday("ai-era-2026.tsv"), 0.5)).toBe(GOOD);
+  expect(percentile(perWeekday("ai-era-2026.tsv"), 0.9)).toBe(GREAT);
 });

@@ -33,7 +33,14 @@ Fourteen days after merge the score settles (`joules settle`, run daily): a reve
 
 **Just the skill:** copy [skill/joules](skill/joules) (SKILL.md and rubric.md) into `~/.claude/skills/joules/` or a repo's `.claude/skills/joules/`.
 
-**Works on day one.** No history or setup needed: efficiency is measured against a typical full-time engineer before AI, 8 J a day, measured once on 39 engineers at Twenty, Novu, Formbricks and Documenso (Q4 2024). A team with its own pre-AI history can measure its own with `joules calibrate` (`--commits` if it didn't use PRs then) and pass `--baseline`.
+**Works on day one.** No history or setup needed: the levels are already measured.
+
+| Joules per weekday, full-time engineers | Median | Top 10% |
+|---|---:|---:|
+| Before AI (39 engineers, Q4 2024) | 8 | 24.2 |
+| With AI (33 engineers, Aug to Oct 2026) | 45.6 | 117.4 |
+
+Efficiency is Joules per weekday against the pre-AI median: 100% is the same output as before AI, good today is 570%, cracked (the top 10%) 1,468%. The full table, a team's own baseline and how to read it fairly are in [the skill](skill/joules/SKILL.md#whats-good-the-measured-numbers); the raw numbers in [data/](data).
 
 **The CLI.** Needs [Bun](https://bun.sh), the [Claude Code CLI](https://docs.claude.com/claude-code) signed in, and `gh` signed in (or `GITHUB_TOKEN`).
 
