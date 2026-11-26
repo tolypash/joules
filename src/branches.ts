@@ -32,7 +32,7 @@ export async function branchWork(repo: string, since: Date, pulls: Pull[]): Prom
 
 /**
  * Which of these commits belong to a merged PR (scored there already; one in an open or closed PR counts
- * nowhere else, so it stays). Asked 50 at a time through GraphQL, so a long v2 branch costs a few calls.
+ * nowhere else, so it stays). Asked 50 at a time through GraphQL, so a long-lived branch costs a few calls.
  */
 async function mergedPrCommits(repo: string, shas: string[]): Promise<Set<string>> {
   const [owner, name] = repo.split("/");
@@ -41,9 +41,12 @@ async function mergedPrCommits(repo: string, shas: string[]): Promise<Set<string
     const batch = shas.slice(i, i + 50);
     const fields = batch.map((sha, j) => `c${j}: object(oid: "${sha}") { ... on Commit { associatedPullRequests(first: 5) { nodes { mergedAt } } } }`).join("\n");
     type Found = { associatedPullRequests: { nodes: { mergedAt: string | null }[] } } | null;
-    const res = await gh<{ data: { repository: Record<string, Found> } }>("/graphql", { method: "POST", body: { query: `{ repository(owner: "${owner}", name: "${name}") { ${fields} } }` } });
+    const res = await gh<{ data: { repository: Record<string, Found> | null } | null; errors?: { message: string }[] }>("/graphql", { method: "POST", body: { query: `{ repository(owner: "${owner}", name: "${name}") { ${fields} } }` } });
+    // GraphQL answers a failure with 200 and an errors list: say what it was.
+    const found = res.data?.repository;
+    if (!found) throw new Error(`GitHub GraphQL ${repo}: ${res.errors?.map((e) => e.message).join("; ")}`);
     batch.forEach((sha, j) => {
-      if (res.data.repository[`c${j}`]?.associatedPullRequests.nodes.some((p) => p.mergedAt)) out.add(sha);
+      if (found[`c${j}`]?.associatedPullRequests.nodes.some((p) => p.mergedAt)) out.add(sha);
     });
   }
   return out;
