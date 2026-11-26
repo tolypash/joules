@@ -1,0 +1,12 @@
+{
+  "name": "joules-cli",
+  "version": "1.0.0",
+  "description": "Score the value each pull request ships, not its lines. Joules = expert hours × reach × kind.",
+  "license": "MIT",
+  "type": "module",
+  "bin": { "joules": "src/cli.ts" },
+  "files": ["src", "skill", "hooks"],
+  "repository": "github:tolypash/joules",
+  "scripts": { "check": "tsc --noEmit && bun test" },
+  "devDependencies": { "@types/bun": "latest", "typescript": "^5.6.0" }
+}

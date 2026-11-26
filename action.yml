@@ -1,0 +1,20 @@
+name: Joules
+description: Score the value each pull request ships (expert hours × reach × kind), write it in the PR, tell the linked Linear or Jira ticket, and settle it after 14 days.
+branding:
+  icon: zap
+  color: yellow
+inputs:
+  model:
+    description: Claude model that scores (an alias like haiku or sonnet, or a full model id)
+    default: haiku
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+    - if: github.event_name == 'pull_request'
+      shell: bash
+      run: command -v claude >/dev/null || npm install -g @anthropic-ai/claude-code >/dev/null 2>&1
+    - shell: bash
+      env:
+        JOULES_MODEL: ${{ inputs.model }}
+      run: bun "$GITHUB_ACTION_PATH/src/cli.ts" action
