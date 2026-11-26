@@ -33,7 +33,26 @@ export type Stats = {
 export const BASELINE = 8;
 
 /** Red up to 100% (no gain on pre-AI), yellow at 300%, green from 500%: heat, not a verdict. */
-const heat = (pct: number) => `hsl(${Math.round(Math.min(120, Math.max(0, ((pct - 100) / 400) * 120)))}, 85%, 78%)`;
+/**
+ * What full-time engineers ship a weekday today, with AI, at Twenty, Novu, Formbricks and Documenso (33 of
+ * them, August to October 2026, `joules calibrate`): the median is good, the top 10% exceptional.
+ */
+export const GOOD = 45.6;
+export const GREAT = 101.6;
+
+/** Where someone sits against the pre-AI line (100%) and today's good and top-10% lines, all in %. */
+export function levelOf(efficiency: number, good: number, great: number): string {
+  if (efficiency < 100) return "below pre-AI";
+  if (efficiency < good) return "building up";
+  if (efficiency < great) return "good";
+  return "exceptional";
+}
+
+/** Red at the pre-AI line, yellow at today's good line, green at the top 10%: heat, not a verdict. */
+function heat(pct: number, good: number, great: number): string {
+  const hue = pct <= good ? ((pct - 100) / (good - 100)) * 60 : 60 + ((pct - good) / (great - good)) * 60;
+  return `hsl(${Math.round(Math.min(120, Math.max(0, hue)))}, 85%, 78%)`;
+}
 
 const median = (xs: number[]) => {
   if (!xs.length) return 0;
@@ -103,6 +122,9 @@ function weeklyBars(weekly: number[], max: number): string {
 }
 
 export function statsHtml(rows: Stats[], o: { title: string; days: number; repos: string[]; note?: string; baseline: number }): string {
+  // Today's good and top-10% lines on this page's scale: the same Joules a day, as a % of its pre-AI line.
+  const good = Math.round((GOOD / o.baseline) * 100);
+  const great = Math.round((GREAT / o.baseline) * 100);
   const max = Math.max(1, ...rows.map((r) => r.joules));
   const maxWeek = Math.max(1, ...rows.flatMap((r) => r.weekly));
   const date = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
@@ -112,7 +134,7 @@ export function statsHtml(rows: Stats[], o: { title: string; days: number; repos
 <td class="total"><b>${r.joules.toLocaleString("en-GB")}</b>${r.unmerged ? `<small>incl. ${r.unmerged.toLocaleString("en-GB")} unmerged</small>` : ""}<span class="bar"><i style="width:${Math.round((r.joules / max) * 100)}%"></i></span></td>
 <td>${r.prs}</td><td>${r.activeDays}</td><td>${r.typicalDay}</td><td>${r.typicalPr}</td>
 <td>${pct(r.rework.fixed, r.rework.settled)}<small>${r.rework.fixed} of ${r.rework.settled}</small></td>
-<td class="pace" style="background:${heat(r.efficiency)}"><b>${r.efficiency}%</b></td>
+<td class="pace" style="background:${heat(r.efficiency, good, great)}"><b>${r.efficiency}%</b><small>${levelOf(r.efficiency, good, great)}</small></td>
 <td class="weeks">${weeklyBars(r.weekly, maxWeek)}</td></tr>`;
   }
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(o.title)}</title><style>
@@ -131,18 +153,18 @@ td.weeks { text-align: left } svg rect { fill: #d97706 } svg .base { stroke: #cc
 .how b { color: #111 }
 .plain { font-size: 15px; line-height: 1.5; color: #222; background: #f7f7f5; border-radius: 8px; padding: 12px 16px; margin: -6px 0 22px }
 td.who small { display: block; color: #888; font-size: 11px; font-weight: 400 }
-td.pace { text-align: center; border-radius: 6px; border-bottom: 2px solid #fff } td.pace b { font-size: 17px }
+td.pace { text-align: center; border-radius: 6px; border-bottom: 2px solid #fff } td.pace b { font-size: 17px } td.pace small { display: block; color: #333; font-size: 11px }
 .note { background: #fff7ed; border-left: 3px solid #d97706; padding: 8px 12px; font-size: 13px; color: #333; margin: -8px 0 18px }
 </style></head><body>
 <h1><span>⚡</span> ${esc(o.title)}</h1>
 <div class="sub">Last ${o.days} days to ${date} · ${esc(o.repos.map((r) => r.split("/")[1]).join(", "))} · release PRs and bots left out</div>
-<div class="plain">Every piece of work an engineer finishes gets a score, called <b>Joules</b>: roughly how many hours a good engineer would have needed for it without AI. Work customers use weighs more than behind-the-scenes clean-up. <b>Efficiency</b> compares each person's Joules per working day with what ${o.baseline === BASELINE ? "a typical engineer delivered" : "this team delivered"} before AI tools: 100% is the same output as before, 300% is three times as much.</div>
+<div class="plain">Every piece of work an engineer finishes gets a score, called <b>Joules</b>: roughly how many hours a good engineer would have needed for it without AI. Work customers use weighs more than behind-the-scenes clean-up. <b>Efficiency</b> compares each person's Joules per working day with what ${o.baseline === BASELINE ? "a typical engineer delivered" : "this team delivered"} before AI tools: 100% is the same output as before, 300% is three times as much. A good engineer today, with AI, is at about ${good}%; the top 10% are above ${great}%.</div>
 ${o.note ? `<div class="note">${esc(o.note)}</div>` : ""}
 <table><tr><th>Engineer</th><th>Joules<br>(value shipped)</th><th>PRs</th><th>Days<br>shipping</th><th>Typical<br>day (J)</th><th>Typical<br>PR (J)</th><th>Needed a<br>fix after</th><th>Efficiency</th><th style="text-align:left">Joules per week, oldest to newest</th></tr>${body}</table>
 <div class="how">
 <div><b>Joules</b> is the value of the work (merged PRs, plus commits on branches with no PR): how long a senior engineer would need without AI × who it reaches (customers 3, the team 2, internal systems 1.5, only developers 1) × what it is (feature, fix or speed-up 1, refactor 0.7, tests 0.6, docs or chores 0.4, dependency bumps 0.3). Claude scores each PR; everything on this page is counted by plain code. A small fix is about 3 J, a solid feature 30 to 100 J.</div>
 <div><b>Typical day</b> is the middle value over the days someone shipped anything, so one huge day doesn't skew it. <b>Typical PR</b> is the same for single PRs.</div>
-<div><b>Efficiency</b> is Joules per weekday against a typical full-time engineer before AI: ${o.baseline} J a day, measured with <code>joules calibrate</code> on work from before Claude 3.7 and agentic coding${o.baseline === BASELINE ? " (the median of 39 full-time engineers on Twenty, Novu, Formbricks, Documenso and our own repos, Q4 2024)" : " (this team's own median)"}. 100% is that engineer; 500% ships five times as much. Red is no gain on that, yellow 300%, green 500% and up. Part-timers are measured against their own hours when marked part-time; people who also work in other repos read low.</div>
+<div><b>Efficiency</b> is Joules per weekday against a typical full-time engineer before AI: ${o.baseline} J a day, measured with <code>joules calibrate</code> on work from before Claude 3.7 and agentic coding${o.baseline === BASELINE ? " (the median of 39 full-time engineers on Twenty, Novu, Formbricks, Documenso and our own repos, Q4 2024)" : " (this team's own median)"}. <b>Good today is ${good}%</b> (${GOOD} J a day): what the typical full-time engineer at Twenty, Novu, Formbricks and Documenso ships with AI, August to October 2026. <b>Exceptional is ${great}%</b> (${GREAT} J a day), their top 10%. Below 100% is below pre-AI; between 100% and ${good}% is building up. Part-timers are measured against their own hours when marked part-time; people who also work in other repos read low.</div>
 <div><b>Needed a fix after</b>: PRs merged ${SETTLE_DAYS}+ days ago that were reverted or fixed again by a later PR pointing back at them. Lower is better; it only sees fixes that link the PR.</div>
 </div></body></html>`;
 }
