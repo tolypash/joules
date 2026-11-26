@@ -80,7 +80,6 @@ function draw() {
   const end = Math.max(rungs.at(-1).v * 1.09, perWeekday * 1.04);
   const at = (v) => PAD + (track * v) / end;
   const you = at(perWeekday);
-  const youAnchor = you < 170 ? "start" : you > W - 170 ? "end" : "middle";
 
   // Joules over time, as a skyline on the right, the best bar at full strength.
   const bars = (DATA.bars ?? []).map(Number);
@@ -109,14 +108,20 @@ function draw() {
   // One coloured stretch per rung, from where it starts to where the next does; what lies past "you" is dimmed.
   const stretch = (from, to, fill) => `<rect x="${from.toFixed(1)}" y="548" width="${Math.max(0, to - from).toFixed(1)}" height="12" fill="${fill}"/>`;
   const line = [stretch(PAD, at(rungs[0].v), "#52525b"), ...rungs.map((r, i) => stretch(at(r.v), i + 1 < rungs.length ? at(rungs[i + 1].v) : W - PAD, r.name === "God" ? "url(#god)" : r.color))].join("");
-  // Names alternate between two rows, so rungs that sit close together still read.
+  // Names sit under the line; one that would run into its neighbour goes above it instead (then on a second row below).
+  const rows = [{ y: 590, end: 0 }, { y: 534, end: 0 }, { y: 614, end: 0 }];
   const names = rungs
     .map((r, i) => {
       const x = at(r.v);
-      const y = i % 2 ? 616 : 592;
+      const value = `${whole(pct(r.v))}%`;
       const last = i === rungs.length - 1;
-      return `<rect x="${(x - 1).toFixed(1)}" y="560" width="2" height="${y - 574}" fill="${r.color}" opacity="0.7"/>
-<text x="${(last ? x + 1 : x - 1).toFixed(1)}" y="${y}" text-anchor="${last ? "end" : "start"}" font-size="14" font-weight="700" fill="${r.color}">${r.name} <tspan font-weight="500" fill="#a1a1aa">${whole(pct(r.v))}%</tspan></text>`;
+      const width = r.name.length * 8.4 + value.length * 8.2 + 5;
+      const from = last ? x - width : x;
+      const row = rows.find((o) => from >= o.end + 12) ?? rows[2];
+      row.end = from + width;
+      const tick = row.y < 548 ? `y="${row.y + 5}" height="${543 - row.y}"` : `y="560" height="${row.y - 574}"`;
+      return `<rect x="${(x - 1).toFixed(1)}" ${tick} width="2" fill="${r.color}" opacity="0.7"/>
+<text x="${(last ? x + 1 : x - 1).toFixed(1)}" y="${row.y}" text-anchor="${last ? "end" : "start"}" font-size="14" font-weight="700" fill="${r.color}">${r.name} <tspan font-weight="500" fill="#a1a1aa">${value}</tspan></text>`;
     })
     .join("\n");
 
@@ -152,7 +157,6 @@ ${pill}
 <g clip-path="url(#round)"><g opacity="0.28">${line}</g><g clip-path="url(#done)">${line}</g></g>
 ${names}
 <circle cx="${you.toFixed(1)}" cy="554" r="12" fill="#fafafa" stroke="#0b0b10" stroke-width="4"/>
-<text x="${(youAnchor === "middle" ? you : youAnchor === "start" ? you - 12 : you + 12).toFixed(1)}" y="532" text-anchor="${youAnchor}" font-size="17" font-weight="800" fill="#fafafa">${output}</text>
 
 <text x="${PAD}" y="650" font-size="15" fill="#71717a">Value shipped per weekday. 100% is the median engineer before AI.</text>
 <text x="${W - PAD}" y="650" text-anchor="end" font-size="17" font-weight="600" fill="#d4d4d8">${LINK}</text>
