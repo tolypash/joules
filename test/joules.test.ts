@@ -95,6 +95,6 @@ test("stats count weeks, typical day and PR, and rework", () => {
     { ann: "Ann" },
     now,
   );
-  expect(row).toMatchObject({ name: "Ann", joules: 65, prs: 4, activeDays: 2, typicalDay: 33, typicalPr: 15, rework: { fixed: 1, settled: 2 } });
+  expect(row).toMatchObject({ name: "Ann", joules: 65, prs: 4, activeDays: 2, typicalDay: 33, typicalPr: 15, rework: { fixed: 1, settled: 2 }, pace: 0.2 });
   expect(row!.weekly).toEqual([0, 35, 0, 30]);
 });

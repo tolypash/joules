@@ -60,7 +60,7 @@ export async function collect(o: Options): Promise<Scored[]> {
 }
 
 /** Weekdays in the last n days, so a weekend doesn't count against anyone. */
-function workdays(n: number, now = new Date()): number {
+export function workdays(n: number, now = new Date()): number {
   let count = 0;
   for (let i = 0; i < n; i++) {
     const d = new Date(now.getTime() - i * DAY).getUTCDay();
