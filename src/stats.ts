@@ -70,6 +70,7 @@ export function statsOf(scored: Scored[], days: number, names: Record<string, st
     }
     const joules = mine.reduce((a, s) => a + s.joules, 0);
     const prs = mine.filter((s) => s.number);
+    const share = shares[author] ?? 1;
     out.push({
       author,
       name: names[author] ?? author,
@@ -80,8 +81,8 @@ export function statsOf(scored: Scored[], days: number, names: Record<string, st
       typicalPr: median(prs.map((s) => s.joules)),
       rework: { fixed, settled },
       weekly,
-      efficiency: Math.round((joules / (workdays(days, new Date(now)) * (shares[author] ?? 1)) / baseline) * 100),
-      share: shares[author] ?? 1,
+      efficiency: Math.round((joules / (workdays(days, new Date(now)) * share) / baseline) * 100),
+      share,
       unmerged: joules - prs.reduce((a, s) => a + s.joules, 0),
     });
   }
@@ -135,13 +136,13 @@ td.pace { text-align: center; border-radius: 6px; border-bottom: 2px solid #fff 
 </style></head><body>
 <h1><span>⚡</span> ${esc(o.title)}</h1>
 <div class="sub">Last ${o.days} days to ${date} · ${esc(o.repos.map((r) => r.split("/")[1]).join(", "))} · release PRs and bots left out</div>
-<div class="plain">Every piece of work an engineer finishes earns points, called <b>Joules</b>, for what it is worth: roughly how many hours a good engineer would have needed for it without AI, counted three times when customers feel it. <b>Efficiency</b> compares each person's points per working day with what ${o.baseline === BASELINE ? "a typical engineer delivered" : "this team delivered"} before AI tools: 100% is the same output as before, 300% is three times as much. Part-timers are measured against their own hours.</div>
+<div class="plain">Every piece of work an engineer finishes earns points, called <b>Joules</b>, for what it is worth: roughly how many hours a good engineer would have needed for it without AI, counted three times when customers feel it. <b>Efficiency</b> compares each person's points per working day with what ${o.baseline === BASELINE ? "a typical engineer delivered" : "this team delivered"} before AI tools: 100% is the same output as before, 300% is three times as much.</div>
 ${o.note ? `<div class="note">${esc(o.note)}</div>` : ""}
 <table><tr><th>Engineer</th><th>Joules<br>(value shipped)</th><th>PRs</th><th>Days<br>shipping</th><th>Typical<br>day (J)</th><th>Typical<br>PR (J)</th><th>Needed a<br>fix after</th><th>Efficiency</th><th style="text-align:left">Joules per week, oldest to newest</th></tr>${body}</table>
 <div class="how">
 <div><b>Joules</b> is the value of the work (merged PRs, plus commits on branches with no PR): how long a senior engineer would need without AI × who it reaches (customers 3, the team 2, internal systems 1.5, only developers 1) × what it is (feature, fix or speed-up 1, refactor 0.7, tests 0.6, docs or chores 0.4, dependency bumps 0.3). Claude scores each PR; everything on this page is counted by plain code. A small fix is about 3 J, a solid feature 30 to 100 J.</div>
 <div><b>Typical day</b> is the middle value over the days someone shipped anything, so one huge day doesn't skew it. <b>Typical PR</b> is the same for single PRs.</div>
-<div><b>Efficiency</b> is Joules per weekday against a typical full-time engineer before AI: ${o.baseline} J a day, measured with <code>joules calibrate</code> on work from before Claude 3.7 and agentic coding${o.baseline === BASELINE ? " (the median of 39 full-time engineers on Twenty, Novu, Formbricks, Documenso and our own repos, Q4 2024)" : " (this team's own median)"}. 100% is that engineer; 500% ships five times as much. Red is no gain on that, yellow 300%, green 500% and up. Part-timers and people working in other repos read low.</div>
+<div><b>Efficiency</b> is Joules per weekday against a typical full-time engineer before AI: ${o.baseline} J a day, measured with <code>joules calibrate</code> on work from before Claude 3.7 and agentic coding${o.baseline === BASELINE ? " (the median of 39 full-time engineers on Twenty, Novu, Formbricks, Documenso and our own repos, Q4 2024)" : " (this team's own median)"}. 100% is that engineer; 500% ships five times as much. Red is no gain on that, yellow 300%, green 500% and up. Part-timers are measured against their own hours when marked part-time; people who also work in other repos read low.</div>
 <div><b>Needed a fix after</b>: PRs merged ${SETTLE_DAYS}+ days ago that were reverted or fixed again by a later PR pointing back at them. Lower is better; it only sees fixes that link the PR.</div>
 </div></body></html>`;
 }

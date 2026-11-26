@@ -55,6 +55,9 @@ const { values, positionals } = parseArgs({
 
 const [command, target] = positionals;
 
+/** "a=1,b=2" as { a: "1", b: "2" }. */
+const pairs = (s: string): Record<string, string> => Object.fromEntries(s.split(",").map((p) => p.split("=")).filter(([k, v]) => k && v));
+
 /** Scores a PR. With write it puts the block in the description and, once merged, posts on its tickets; without, it only says what it would post. */
 async function scorePull(repo: string, pr: Pull, write: boolean) {
   const ctx = await pullContext(repo, pr);
@@ -108,22 +111,14 @@ else if (command === "backfill") {
   // Whole weeks, so the oldest bar is never a part-week that reads as a slump.
   const days = Math.max(1, Math.round(options.days / 7)) * 7;
   const scored = await collect({ ...options, days, compare: false });
-  const names: Record<string, string> = {};
-  for (const pair of values.names.split(",").filter(Boolean)) {
-    const [login, name] = pair.split("=");
-    if (login && name) names[login] = name;
-  }
+  const names = pairs(values.names);
   const unnamed = [...new Set(scored.map((s) => s.author))].filter((login) => !names[login]);
   await pool(unnamed, options.concurrency, async (login) => {
     names[login] = (await gh<{ name: string | null }>(`/users/${login}`)).name ?? login;
   });
   const people = new Set(values.people.split(",").filter(Boolean));
   const baseline = values.baseline ? Number(values.baseline) : BASELINE;
-  const shares: Record<string, number> = {};
-  for (const pair of values["part-time"].split(",").filter(Boolean)) {
-    const [login, share] = pair.split("=");
-    if (login && Number(share) > 0) shares[login] = Number(share);
-  }
+  const shares = Object.fromEntries(Object.entries(pairs(values["part-time"])).flatMap(([login, share]) => (Number(share) > 0 ? [[login, Number(share)]] : [])));
   const rows = statsOf(people.size ? scored.filter((s) => people.has(s.author)) : scored, days, names, Date.now(), baseline, shares);
   console.log(JSON.stringify(rows, null, 1));
   if (values.html) writeFileSync(values.html, statsHtml(rows, { title: values.title, days, repos, note: values.note, baseline }));

@@ -6,7 +6,10 @@ export type Stamp = Score & { v: 1; stage: "preview" | "open" | "merged"; final?
 
 const BLOCK = /<!-- joules:start -->[\s\S]*?<!-- joules:end -->/;
 
-export const headline = (s: Score, joules = s.joules) => `⚡ ${joules} J · ${s.kind} · ${s.reach} · ~${s.expert_hours} expert hours`;
+/** "feature · customers", or each part's kind ("feature + fix + deps") when a PR bundles several things. */
+export const what = (s: Score) => (s.parts?.length ? s.parts.map((p) => p.kind).join(" + ") : `${s.kind} · ${s.reach}`);
+
+export const headline = (s: Score, joules = s.joules) => `⚡ ${joules} J · ${what(s)} · ~${s.expert_hours} expert hours`;
 
 /** "reverted", "1 follow-up fix", "2 follow-up fixes" or "no follow-up fixes". */
 export function settledNote(s: Settlement): string {

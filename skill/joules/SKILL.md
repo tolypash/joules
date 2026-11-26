@@ -18,9 +18,9 @@ Joules measure the value a change ships, not its size: **expert hours × reach �
 
 ```
 <!-- joules:start -->
-⚡ **<joules> J** · <kind> · <reach> · ~<expert_hours> expert hours
+⚡ **<joules> J** · <kind> · <reach> · ~<expert_hours> expert hours   (several parts: <kind> + <kind> · ~<total hours> expert hours)
 <sub><reason> · [Joules](https://github.com/tolypash/joules)</sub>
-<!-- joules {"v":1,"stage":"preview","kind":"…","reach":"…","expert_hours":0,"summary":"…","reason":"…","joules":0,"model":"<your model>","scored_at":"<ISO time>"} -->
+<!-- joules {"v":1,"stage":"preview","kind":"…","reach":"…","expert_hours":0,"parts":[only when several],"summary":"…","reason":"…","joules":0,"model":"<your model>","scored_at":"<ISO time>"} -->
 <!-- joules:end -->
 ```
 

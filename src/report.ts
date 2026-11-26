@@ -1,4 +1,4 @@
-import { readStamp, settledNote } from "./block.ts";
+import { readStamp, settledNote, what } from "./block.ts";
 import { branchContext, branchWork } from "./branches.ts";
 import { type Entry, loadCache, saveEntry } from "./cache.ts";
 import { isBot, isRelease, mergedSince, type Pull, type PullContext, pullContext } from "./github.ts";
@@ -128,7 +128,7 @@ function trend(r: Row): string {
 
 function prLine(s: Scored): string {
   const after = s.settlement ? ` · ${settledNote(s.settlement)}` : "";
-  const why = `${s.score.kind} · ${s.score.reach} · ~${s.score.expert_hours}h${after}. ${s.score.reason}`;
+  const why = `${what(s.score)} · ~${s.score.expert_hours}h${after}. ${s.score.reason}`;
   return `<li><b>${s.joules} J</b> <a href="${esc(s.url)}">${esc(s.repo.split("/")[1]!)}#${s.number}</a> ${esc(s.score.summary || s.title)}<span class="why">${esc(why)}</span></li>`;
 }
 

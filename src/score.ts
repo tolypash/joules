@@ -33,7 +33,7 @@ export function parseRating(text: string): Rating {
     p.expert_hours = Math.min(120, Math.max(0.25, Number(p.expert_hours) || 0.25));
   }
   const top = parts.reduce((a, b) => (partJoules(b) > partJoules(a) ? b : a));
-  const hours = Math.min(200, parts.reduce((a, p) => a + p.expert_hours, 0));
+  const hours = parts.reduce((a, p) => a + p.expert_hours, 0);
   return { kind: top.kind, reach: top.reach, expert_hours: hours, ...(parts.length > 1 && { parts }), summary: r.summary, reason: r.reason };
 }
 
