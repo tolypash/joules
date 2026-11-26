@@ -14,11 +14,11 @@ Joules measure the value a change ships, not its size: **expert hours × reach �
 3. Work out Joules: for each part `expert_hours × reach × kind`, added up and rounded, at least 1 (a revert is 0). In the block, `kind` and `reach` are the biggest part's and `expert_hours` is the total.
    - reach: customers 3, team 2, internal 1.5, dev 1
    - kind: feature, fix, perf 1; refactor 0.7; test 0.6; docs, chore 0.4; deps 0.3; revert 0
-4. Put this block at the very end of the PR body (replace an older one between the same markers), with `stage` set to `preview`:
+4. Put this block at the very end of the PR body (replace an older one between the same markers), with `stage` set to `preview`. With several parts, the first line names each part's kind instead: `⚡ **54 J** · deps + feature + fix · ~54 expert hours`.
 
 ```
 <!-- joules:start -->
-⚡ **<joules> J** · <kind> · <reach> · ~<expert_hours> expert hours   (several parts: <kind> + <kind> · ~<total hours> expert hours)
+⚡ **<joules> J** · <kind> · <reach> · ~<expert_hours> expert hours
 <sub><reason> · [Joules](https://github.com/tolypash/joules)</sub>
 <!-- joules {"v":1,"stage":"preview","kind":"…","reach":"…","expert_hours":0,"parts":[only when several],"summary":"…","reason":"…","joules":0,"model":"<your model>","scored_at":"<ISO time>"} -->
 <!-- joules:end -->
