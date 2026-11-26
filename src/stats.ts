@@ -27,18 +27,13 @@ export type Stats = {
 };
 
 /**
- * Joules per weekday of the median full-time engineer before AI (Q4 2024, before Claude 3.7 and agentic
- * coding), measured by `joules calibrate` over our repos and public product repos. 100% is that engineer.
+ * Joules per weekday of full-time engineers, measured with `joules calibrate` (data/*.tsv; the test checks
+ * these against it). BASELINE: the median before AI (Q4 2024, before Claude 3.7 and agentic coding), so 100%
+ * is that engineer. GOOD: the median with AI (August to October 2026). GREAT: the top 10% with AI.
  */
 export const BASELINE = 8;
-
-/** Red up to 100% (no gain on pre-AI), yellow at 300%, green from 500%: heat, not a verdict. */
-/**
- * What full-time engineers ship a weekday today, with AI, at Twenty, Novu, Formbricks and Documenso (33 of
- * them, August to October 2026, `joules calibrate`): the median is good, the top 10% cracked.
- */
 export const GOOD = 45.6;
-export const GREAT = 101.6;
+export const GREAT = 117.4;
 
 /** Where someone sits against the pre-AI line (100%) and today's good and top-10% lines, all in %. */
 export function levelOf(efficiency: number, good: number, great: number): string {
