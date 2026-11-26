@@ -8,7 +8,7 @@ export type Options = { repos: string[]; days: number; cache: string; model: str
 export type Scored = Entry & { joules: number; settlement?: Settlement };
 export type Row = { author: string; day: number; week: number; total: number; prs: number; perWorkday: number; previous?: number; top: Scored[]; bottom: Scored[] };
 
-async function pool<T>(items: T[], size: number, work: (item: T) => Promise<void>): Promise<void> {
+export async function pool<T>(items: T[], size: number, work: (item: T) => Promise<void>): Promise<void> {
   let next = 0;
   const worker = async () => {
     while (next < items.length) await work(items[next++]!);

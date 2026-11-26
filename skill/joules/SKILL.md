@@ -27,3 +27,10 @@ Joules measure the value a change ships, not its size: **expert hours Ã— reach Ã
 5. Open the PR as you were going to. Tell the user the score in one line.
 
 With the CLI installed you can instead run `bunx joules-cli score <owner/repo#N> --write` once the PR exists.
+
+## Shipping well with AI
+
+- **One PR per scoped piece of work.** A feature with its backend, UI and tests goes in one PR with a clear high-level scope, not split into many small ones. The reviewer, and any AI pass over it (/simplify, code review), needs the whole diff to see duplication and simplify it. Split only what is truly independent.
+- **Clean the whole diff before opening.** Run /simplify (or an equal review) on the full PR diff, not just the last commit.
+- **Spend tokens on the work, not around it.** Point Claude at the files that matter instead of pasting whole folders, plan before a big change, and use a smaller model for mechanical work (renames, bulk edits, scoring).
+- **Link follow-ups.** A fix for an earlier PR names it (`Fixes #123`), so the earlier PR's score settles honestly.
