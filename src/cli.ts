@@ -7,8 +7,9 @@ import { collect, html, leaderboard, markdown, pool } from "./report.ts";
 import { rate } from "./score.ts";
 import { settleRepo } from "./settle.ts";
 import { calibrate } from "./calibrate.ts";
+import { cardHtml, cardOf, cardPng, PERIODS, type Period } from "./card.ts";
 import { init } from "./init.ts";
-import { BASELINE, statsHtml, statsOf } from "./stats.ts";
+import { BASELINE, GOOD, statsHtml, statsOf } from "./stats.ts";
 import { commentOnTickets } from "./tickets.ts";
 
 const HELP = `joules: score the value each pull request ships
@@ -20,6 +21,7 @@ const HELP = `joules: score the value each pull request ships
   joules stats --repos a/b,c/d [--days 30]     per engineer: weekly Joules, typical day, rework (--html out.html, --title, --names login=Name,…, --note, --people a,b, --baseline J from calibrate, --part-time login=0.5)
   joules calibrate --repos a/b,c/d             the pre-AI baseline: Joules per weekday of full-time engineers (--from 2024-10-01 --to 2024-12-31 --sample 12 --min-weeks 8; --commits for teams that commit without PRs)
   joules settle <owner/repo> [--write]         settle PRs merged 14+ days ago (reverts, follow-up fixes); run it daily
+  joules card [--period week|month|year]       your Joules as a card to share, against the median engineer with AI (--repos a/b,c/d, default this repo; --me login, default you; --html out.html; --names login=Name)
 
   --model haiku        Claude model (alias or full id)
   --cache file.jsonl   where scores are kept (default joules-cache.jsonl)
@@ -48,6 +50,8 @@ const { values, positionals } = parseArgs({
     sample: { type: "string", default: "12" },
     "min-weeks": { type: "string", default: "8" },
     commits: { type: "boolean", default: false },
+    me: { type: "string" },
+    period: { type: "string", default: "month" },
     help: { type: "boolean", short: "h", default: false },
   },
 });
@@ -68,6 +72,14 @@ async function scorePull(repo: string, pr: Pull, write: boolean) {
   const note = `${headline(score)}: ${pr.title} (${pr.html_url})\n${score.reason}`;
   const reached = await commentOnTickets(ctx.tickets, note, !write);
   console.log(reached.length ? `${write ? "Posted" : "Would post"} on ${reached.join(", ")}:\n${note}` : `No tracker knew ${ctx.tickets.join(", ")}`);
+}
+
+/** The repo this folder is a clone of, for a command given no --repos. */
+async function originRepo(): Promise<string> {
+  const url = (await Bun.$`git remote get-url origin`.nothrow().quiet().text()).trim();
+  const m = url.match(/([\w.-]+\/[\w.-]+?)(\.git)?\/?$/);
+  if (!m) throw new Error("Not in a GitHub clone: pass --repos owner/repo");
+  return m[1]!;
 }
 
 const repos = values.repos.split(",").map((r) => r.trim()).filter(Boolean);
@@ -107,6 +119,22 @@ else if (command === "score") {
   const rows = statsOf(people.size ? scored.filter((s) => people.has(s.author)) : scored, days, names, Date.now(), baseline, shares);
   console.log(JSON.stringify(rows, null, 1));
   if (values.html) writeFileSync(values.html, statsHtml(rows, { title: values.title, days, repos, note: values.note, baseline }));
+} else if (command === "card") {
+  const period = values.period as Period;
+  if (!(period in PERIODS)) throw new Error(`--period is week, month or year, got ${values.period}`);
+  const me = values.me ?? (await gh<{ login: string }>("/user")).login;
+  const scored = await collect({ ...options, repos: repos.length ? repos : [await originRepo()], days: PERIODS[period].days, compare: false });
+  const card = cardOf(scored.filter((s) => s.author === me), period, pairs(values.names)[me] ?? `@${me}`);
+  if (!card.joules) throw new Error(`Nothing by ${me} merged in the last ${PERIODS[period].label}: check --repos and --me`);
+  const page = values.html ?? "joules-card.html";
+  const image = page.replace(/(\.html?)?$/, ".png");
+  writeFileSync(page, cardHtml(card));
+  const perWeekday = card.joules / card.weekdays;
+  console.log(`⚡ ${card.joules.toLocaleString("en-US")} J · ${card.period} · ${Math.round(perWeekday * 10) / 10} J a weekday, ${Math.round((perWeekday / GOOD) * 10) / 10}× the median engineer with AI`);
+  console.log(cardPng(page, image) ? `${image}: the card, ready to post` : "No Chrome found for the PNG: use Download PNG on the page (or set CHROME_PATH)");
+  console.log(`${page}: open it to copy the image and post on X with the text ready`);
+  // In a terminal, show it; an agent or a script gets the paths above.
+  if (process.stdout.isTTY) Bun.spawn(process.platform === "darwin" ? ["open", page] : process.platform === "win32" ? ["cmd", "/c", "start", "", page] : ["xdg-open", page], { stdout: "ignore", stderr: "ignore" });
 } else if (command === "calibrate") {
   const rows = await calibrate({ ...options, from: new Date(`${values.from}T00:00:00Z`), to: new Date(`${values.to}T23:59:59Z`), sample: Number(values.sample), minWeeks: Number(values["min-weeks"]), commits: values.commits });
   for (const r of rows) console.log(`${r.perWeekday} J/weekday  ${r.author} (${r.repos.join(", ")}): ${r.prs} ${values.commits ? "weeks" : "PRs"}, ${r.perPr} J each from ${r.sampled} sampled`);

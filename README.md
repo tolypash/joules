@@ -2,6 +2,8 @@
 
 See the energy your team ships.
 
+![A Joules card: 1,612 Joules shipped in four weeks, 1.8× the median engineer shipping with AI](docs/card.jpg)
+
 Joules gives every pull request a score for the value it delivers: what it does, who feels it and how hard it was. Not lines of code, not PR count. With AI writing thousands of lines in minutes, those numbers stopped meaning anything. A one-line fix to a payment bug can be worth more than a 5,000-line scaffold, and Joules says so.
 
 ```
@@ -25,13 +27,32 @@ Fourteen days after merge the score settles (`joules settle`, run daily): a reve
 
 - **On every PR:** the agent that opens it (Claude Code, Codex, Cursor) scores it and puts the score in the description. Your team already opens PRs with an agent, so scoring needs no server and no secret.
 - **On the ticket:** when the PR names a Linear or Jira issue (`ABC-123` in the branch, title or description) and the agent has a tracker tool, it posts the score there too.
+- **A card to share:** `joules card` turns your week, month or year into one image, measured against the median engineer shipping with AI. [See below](#share-your-joules).
 - **Team view:** `joules report` gives a table per person for the last 24 hours, 7 days and the window you pick (`--days`), and with `--html` each person's highest and lowest-value PRs. Good for a weekly shout-out, a sprint review, or spotting someone who's stuck and needs a hand.
+
+## Share your Joules
+
+One command turns your week, month or year into a card made to be posted:
+
+```sh
+bunx joules-cli card                                             # your last 4 weeks in this repo
+bunx joules-cli card --period year --repos acme/shop,acme/api    # or week; any repos you work in
+```
+
+It writes `joules-card.png` (when the machine has Chrome) and opens `joules-card.html`: the card, a Copy image button, and Post on X with the text already written. Or ask your agent to "share my Joules": the skill makes the same card with no CLI.
+
+- **Measured against engineers who ship with AI too**, not against the days before it: your Joules per weekday as a multiple of today's median (45.6), with the top 25% (71.3) and the top 10% (117.4) marked on the scale.
+- **Numbers only.** No repo names and no PR titles, so it is safe to post from private work.
+- **Week, month or year:** the last 7 days, 4 weeks or 52 weeks, each with its skyline of Joules per day or per week.
+- **The top 10% get their own colours:**
+
+![The card of someone in the top 10%: 38,420 Joules in 52 weeks, 3.2× the median](docs/card-cracked.jpg)
 
 ## Set it up
 
 **In a repo** (needs [Bun](https://bun.sh)): run `bunx joules-cli init`, then commit what it adds. Claude Code gets the skill and a pre-PR hook that holds `gh pr create` until the PR has a score; other agents read the note it adds to AGENTS.md or CLAUDE.md.
 
-**Just the skill** (no Bun or Node needed): copy [skill/joules](skill/joules) (SKILL.md and rubric.md) into `~/.claude/skills/joules/` or a repo's `.claude/skills/joules/`.
+**Just the skill** (no Bun or Node needed): copy [skill/joules](skill/joules) (SKILL.md, rubric.md and card.html) into `~/.claude/skills/joules/` or a repo's `.claude/skills/joules/`.
 
 **Works on day one.** No history or setup needed: the levels are already measured.
 
@@ -50,6 +71,7 @@ bunx joules-cli backfill --repos acme/shop,acme/api --days 90
 bunx joules-cli report --repos acme/shop,acme/api --days 30 --compare --html team.html
 bunx joules-cli settle acme/shop --write          # run daily: reverts and follow-up fixes
 bunx joules-cli stats --repos acme/shop --days 90 --html team.html   # per person: weekly Joules, typical day, rework
+bunx joules-cli card --period month                # your own Joules as a card to share
 ```
 
 With `--write`, `score` and `settle` post on the linked ticket when `LINEAR_API_KEY` (or `JIRA_BASE_URL`, `JIRA_EMAIL` and `JIRA_API_TOKEN`) is set.

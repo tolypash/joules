@@ -1,6 +1,6 @@
 ---
 name: joules
-description: Score the value a pull request ships, in Joules, put the score in the PR description and on its ticket, and judge an engineer's or a team's output against measured levels (pre-AI, good, cracked). Use when opening a PR (gh pr create), when asked "how many joules is this?" or how someone is doing, or when the joules hook asks for a score.
+description: Score the value a pull request ships, in Joules, put the score in the PR description and on its ticket, judge an engineer's or a team's output against measured levels (pre-AI, good, cracked), and make a card of someone's Joules to share. Use when opening a PR (gh pr create or a GitHub tool), when asked "how many joules is this?" or how someone is doing, when asked to share or post their Joules, or when the joules hook asks for a score.
 ---
 
 # Joules
@@ -58,6 +58,29 @@ So with AI the median engineer ships about 5.7× the Joules of the median engine
 - Work on a long-lived branch with no PR yet counts too: score each person's week of commits there as one change with the rubric, so someone building a v2 doesn't read as idle.
 - Bots and release PRs (staging into master) are left out: the PRs they carry are scored on their own.
 - Someone who also works in repos you didn't include reads low; so does anyone whose PRs wait days for review, since a PR counts on the day it merges.
+
+## Share your Joules
+
+When someone asks to share their Joules (a card, a post, "my week in Joules"), make their card: one image with their total, their Joules per weekday, and where that sits against the median engineer shipping with AI, the top 25% and the top 10%. It carries numbers only, no repo names or PR titles, so it is safe to post from private work.
+
+1. **Pick the window**, ending today: a week (7 days, 5 weekdays), a month (28 days, 20 weekdays; use this when they don't say) or a year (364 days, 260 weekdays).
+2. **Add up their Joules in it.** List their merged PRs with `gh search prs --author @me --merged --merged-at ">=<first day>" --limit 1000 --json url,closedAt,body` (add `--repo owner/repo` to keep to one repo). Each PR counts the `joules` in its block's JSON, or `final.joules` once it has settled. Score a PR with no block from its diff with the rubric; when there are too many, leave them out and tell the user how many.
+3. **Fill in the card.** [card.html](card.html), next to this file, draws everything from one line of numbers. Don't read it (it carries a font); copy it with that line replaced:
+
+   ```sh
+   sed 's|^const DATA = .*|const DATA = {"who":"@login","period":"4 weeks to 26 Nov 2026","joules":1612,"weekdays":20,"prs":41,"bars":[64,0,0,38]};|' card.html > joules-card.html
+   ```
+
+   `period` is the window in words ("7 days to …", "4 weeks to …", "52 weeks to …"). `bars` is the Joules of each day in the window, oldest first; for a year, of each week.
+4. **Hand it over.** Open `joules-card.html` for them (`open`, `xdg-open` or `start`): it shows the card with Copy image, Download PNG, and Post on X with the text already written. Where you can't open a browser but have a Chrome, draw the image and send it instead (as root, add `--no-sandbox`):
+
+   ```sh
+   google-chrome --headless --screenshot=joules-card.png --window-size=1200,675 --force-device-scale-factor=2 --virtual-time-budget=2000 "file://$PWD/joules-card.html#png"
+   ```
+
+5. Tell them their line, ready to post: `⚡ 1,612 Joules shipped · 4 weeks to 26 Nov 2026 · 80.6 J a weekday, 1.8× the median engineer with AI`.
+
+The comparison is always with engineers who ship with AI too (the median is 45.6 J a weekday, the top 25% 71.3, the top 10% 117.4), never with the days before it. With the Joules CLI (needs [Bun](https://bun.sh)) steps 2 to 4 are one command, which also scores PRs that have no block: `bunx joules-cli card --period month`.
 
 ## Shipping well with AI
 

@@ -1,7 +1,11 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { expect, test } from "bun:test";
 import { readStamp, type Stamp, withStamp, withoutStamp } from "../src/block.ts";
+import { cardHtml, cardOf } from "../src/card.ts";
 import { isRelease, type Pull } from "../src/github.ts";
+import { init } from "../src/init.ts";
 import { leaderboard, type Scored } from "../src/report.ts";
 import { joulesOf, parseRating } from "../src/score.ts";
 import { finalJoules, settlementOf } from "../src/settle.ts";
@@ -26,11 +30,20 @@ test("a rating is read from the model's text and its hours are clamped", () => {
 test("the block goes at the end, is replaced in place, and reads back", () => {
   const once = withStamp("Adds tips.", stamp);
   expect(once.startsWith("Adds tips.\n\n<!-- joules:start -->")).toBe(true);
-  const twice = withStamp(once, { ...stamp, joules: 40 });
+  const twice = withStamp(once, { ...stamp, expert_hours: 14, joules: 42 });
   expect(twice.match(/joules:start/g)).toHaveLength(1);
-  expect(readStamp(twice)?.joules).toBe(40);
+  expect(readStamp(twice)?.joules).toBe(42);
   expect(withoutStamp(twice)).toBe("Adds tips.");
   expect(readStamp("no block")).toBeUndefined();
+});
+
+test("a block an agent wrote by hand is read loosely and its Joules worked out again", () => {
+  const block = (json: string) => `Adds tips.\n<!-- joules:start -->\n<!-- joules ${json} -->\n<!-- joules:end -->`;
+  // Spread over lines, and the sum is wrong: 12 × 3 × 1 is 36.
+  expect(readStamp(block('{\n "kind": "feature",\n "reach": "customers",\n "expert_hours": 12,\n "joules": 99\n}'))?.joules).toBe(36);
+  expect(readStamp(block('{"kind":"magic","reach":"customers","expert_hours":12,"joules":36}'))).toBeUndefined();
+  expect(readStamp(block('{"kind":"fix","reach":"customers","expert_hours":"a lot","joules":36}'))).toBeUndefined();
+  expect(readStamp(block('{"kind":"fix"'))).toBeUndefined();
 });
 
 test("ticket keys are found once each", () => {
@@ -48,7 +61,7 @@ test("a revert zeroes the score, follow-up fixes take a quarter each", () => {
     pull(12, "Fix tips on refunds", "From /pull/10", "2026-11-05T00:00:00Z"),
     pull(13, "Fix unrelated", "#100", "2026-11-05T00:00:00Z"),
     pull(14, "Fix tips again", "#10", "2026-12-01T00:00:00Z"),
-    pull(16, "Tips copy", "#10 <!-- joules {\"kind\":\"fix\"} -->", "2026-11-04T00:00:00Z"),
+    pull(16, "Tips copy", `#10 ${withStamp("", { ...stamp, kind: "fix" })}`, "2026-11-04T00:00:00Z"),
   ];
   const s = settlementOf(target, later);
   expect(s).toEqual({ reverted: false, fixes: [11, 12, 16] });
@@ -125,4 +138,39 @@ test("the levels are the measured percentiles", () => {
   expect(percentile(perWeekday("pre-ai-2024-q4.tsv"), 0.5)).toBe(BASELINE);
   expect(percentile(perWeekday("ai-era-2026.tsv"), 0.5)).toBe(GOOD);
   expect(percentile(perWeekday("ai-era-2026.tsv"), 0.9)).toBe(GREAT);
+  // The share card carries its own copy of the with-AI levels.
+  const card = readFileSync(new URL("../skill/joules/card.html", import.meta.url), "utf8");
+  expect(card).toContain(`const WITH_AI = { median: ${GOOD}, p75: ${percentile(perWeekday("ai-era-2026.tsv"), 0.75)}, top10: ${GREAT} };`);
+});
+
+test("the share card counts one person's window: total, weekdays, PRs and a bar per day or week", () => {
+  const now = new Date("2026-11-26T12:00:00Z").getTime(); // a Thursday
+  const s = (joules: number, daysAgo: number, number = 1): Scored => ({
+    repo: "o/r", number, title: "", author: "ann", url: "", merged_at: new Date(now - daysAgo * 86_400_000).toISOString(), score: { ...stamp, joules }, joules,
+  });
+  const scored = [s(10, 0.5), s(20, 0.6), s(5, 6.5), s(40, 20, 0), s(99, 30)];
+  expect(cardOf(scored, "week", "@ann", now)).toEqual({ who: "@ann", period: "7 days to 26 Nov 2026", joules: 35, weekdays: 5, prs: 3, bars: [5, 0, 0, 0, 0, 0, 30] });
+  const month = cardOf(scored, "month", "@ann", now);
+  expect(month).toMatchObject({ period: "4 weeks to 26 Nov 2026", joules: 75, weekdays: 20, prs: 3 }); // the week of branch work counts, but isn't a PR
+  expect(month.bars).toHaveLength(28);
+  const year = cardOf(scored, "year", "@ann", now);
+  expect(year).toMatchObject({ joules: 174, weekdays: 260, prs: 4 });
+  expect(year.bars.slice(-5)).toEqual([99, 0, 40, 0, 35]);
+});
+
+test("the card page is the template with the numbers in its one DATA line", () => {
+  const page = cardHtml({ who: "</script><b>@ann", period: "7 days to 26 Nov 2026", joules: 35, weekdays: 5, prs: 3, bars: [5, 30] });
+  expect(page.match(/^const DATA = (.*);$/m)?.[1]).toBe('{"who":"\\u003c/script>\\u003cb>@ann","period":"7 days to 26 Nov 2026","joules":35,"weekdays":5,"prs":3,"bars":[5,30]}');
+  expect(page.match(/<\/script>/g)).toHaveLength(1);
+});
+
+test("init puts the skill, its card and the hook in a repo, once, and widens an older hook", () => {
+  const dir = mkdtempSync(join(tmpdir(), "joules-"));
+  const hook = '"$CLAUDE_PROJECT_DIR"/.claude/hooks/joules-pre-pr.sh';
+  expect(init(dir)).toEqual([".claude/skills/joules/SKILL.md", ".claude/skills/joules/rubric.md", ".claude/skills/joules/card.html", ".claude/hooks/joules-pre-pr.sh", ".claude/settings.json", "CLAUDE.md"]);
+  expect(init(dir)).toEqual([]);
+  const settings = join(dir, ".claude/settings.json");
+  writeFileSync(settings, JSON.stringify({ hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: hook }] }] } }));
+  expect(init(dir)).toEqual([".claude/settings.json"]);
+  expect(JSON.parse(readFileSync(settings, "utf8")).hooks.PreToolUse).toEqual([{ matcher: "Bash|mcp__.*__create_pull_request", hooks: [{ type: "command", command: hook }] }]);
 });

@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
-# Claude Code PreToolUse hook: before `gh pr create`, make sure the PR body carries a Joules block.
-# If it doesn't, the command is held (exit 2) and Claude is told to score the branch with the joules skill first.
+# Claude Code PreToolUse hook: before a PR is opened (`gh pr create`, or a GitHub tool's create_pull_request),
+# make sure its body carries a Joules block. If it doesn't, the call is held (exit 2) and Claude is told to
+# score the branch with the joules skill first.
 # Without python3 it lets the PR through rather than block work.
 command -v python3 >/dev/null || exit 0
 python3 -c '
 import json, shlex, sys
-cmd = json.load(sys.stdin).get("tool_input", {}).get("command", "")
-if "gh pr create" not in cmd or "joules:start" in cmd:
+call = json.load(sys.stdin)
+given = call.get("tool_input") or {}
+cmd = given.get("command") or ""
+by_tool = str(call.get("tool_name", "")).endswith("create_pull_request")
+if by_tool and "joules:start" in (given.get("body") or ""):
+    sys.exit(0)
+if not by_tool and ("gh pr create" not in cmd or "joules:start" in cmd):
     sys.exit(0)
 try:
     args = shlex.split(cmd)
@@ -20,6 +26,6 @@ for i, a in enumerate(args):
                 sys.exit(0)
         except OSError:
             pass
-sys.stderr.write("Joules: this PR has no score yet. Use the joules skill (.claude/skills/joules/ in the repo, or ~/.claude/skills/joules/) to score the branch and add its block at the end of the PR body, then run gh pr create again.\n")
+sys.stderr.write("Joules: this PR has no score yet. Use the joules skill (.claude/skills/joules/ in the repo, or ~/.claude/skills/joules/) to score the branch and add its block at the end of the PR body, then open the PR again.\n")
 sys.exit(2)
 '

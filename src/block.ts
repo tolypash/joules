@@ -1,4 +1,4 @@
-import type { Score } from "./score.ts";
+import { joulesOf, KINDS, REACH, type Score } from "./score.ts";
 import type { Settlement } from "./settle.ts";
 
 /** What a PR carries in its description. `final` is set once the PR has settled (see settle.ts). */
@@ -29,11 +29,18 @@ function render(s: Stamp): string {
   ].join("\n");
 }
 
+/**
+ * The score a PR carries. Agents write the block by hand, so its JSON may span lines, and the Joules are
+ * worked out again from its parts rather than trusted; a block that isn't a rating reads as no score.
+ */
 export function readStamp(body: string | null | undefined): Stamp | undefined {
-  const m = body?.match(/<!-- joules (\{.*\}) -->/);
+  const m = body?.match(/<!-- joules (\{[\s\S]*?\}) -->/);
   if (!m) return undefined;
   try {
-    return JSON.parse(m[1]!) as Stamp;
+    const s = JSON.parse(m[1]!) as Stamp;
+    const parts = s.parts?.length ? s.parts : [s];
+    if (!parts.every((p) => p.kind in KINDS && p.reach in REACH && Number.isFinite(p.expert_hours))) return undefined;
+    return { ...s, joules: joulesOf(s) };
   } catch {
     return undefined;
   }

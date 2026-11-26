@@ -3,6 +3,8 @@ import { join } from "node:path";
 
 const ROOT = join(import.meta.dir, "..");
 const HOOK = '"$CLAUDE_PROJECT_DIR"/.claude/hooks/joules-pre-pr.sh';
+/** However the agent opens the PR: `gh pr create` in the shell, or a GitHub tool. */
+const MATCHER = "Bash|mcp__.*__create_pull_request";
 
 const NOTE = `
 ## Pull requests: Joules
@@ -36,12 +38,16 @@ export function init(dir: string): string[] {
   };
   write(".claude/skills/joules/SKILL.md", "skill/joules/SKILL.md");
   write(".claude/skills/joules/rubric.md", "skill/joules/rubric.md");
+  write(".claude/skills/joules/card.html", "skill/joules/card.html");
   write(".claude/hooks/joules-pre-pr.sh", "hooks/pre-pr.sh");
   chmodSync(join(dir, ".claude/hooks/joules-pre-pr.sh"), 0o755);
 
   const pre = (settings.hooks ??= {}).PreToolUse ?? [];
-  if (!pre.some((h) => h.hooks?.some((c) => c.command === HOOK))) {
-    settings.hooks.PreToolUse = [...pre, { matcher: "Bash", hooks: [{ type: "command", command: HOOK }] }];
+  const mine = pre.find((h) => h.hooks?.some((c) => c.command === HOOK));
+  if (mine?.matcher !== MATCHER) {
+    // An earlier init watched the shell only: widen that entry rather than add a second.
+    if (mine) mine.matcher = MATCHER;
+    else settings.hooks.PreToolUse = [...pre, { matcher: MATCHER, hooks: [{ type: "command", command: HOOK }] }];
     writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
     done.push(".claude/settings.json");
   }
