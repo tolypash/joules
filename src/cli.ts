@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { headline, readStamp, type Stamp, withStamp } from "./block.ts";
-import { gh, isRelease, type Pull, pullContext } from "./github.ts";
+import { headline, type Stamp, withStamp } from "./block.ts";
+import { gh, type Pull, pullContext } from "./github.ts";
 import { collect, html, leaderboard, markdown, pool } from "./report.ts";
 import { rate } from "./score.ts";
 import { settleRepo } from "./settle.ts";
@@ -13,14 +13,13 @@ import { commentOnTickets } from "./tickets.ts";
 
 const HELP = `joules: score the value each pull request ships
 
-  joules init [dir]                            put Joules in a repo: every agent there scores its PRs (skill, hook, notes, workflow)
+  joules init [dir]                            put Joules in a repo: every agent there scores its PRs (skill, hook, notes)
   joules score <owner/repo#123> [--write]      score one PR (--write puts the block in its description and posts on its tickets)
   joules report --repos a/b,c/d [--days 30]    leaderboard per engineer (--html out.html, --compare, --compact)
   joules backfill --repos a/b,c/d --days 90    score past PRs into the cache, nothing written to GitHub
   joules stats --repos a/b,c/d [--days 30]     per engineer: weekly Joules, typical day, rework (--html out.html, --title, --names login=Name,…, --note, --people a,b, --baseline J from calibrate, --part-time login=0.5)
   joules calibrate --repos a/b,c/d             the pre-AI baseline: Joules per weekday of full-time engineers (--from 2024-10-01 --to 2024-12-31 --sample 12 --min-weeks 8; --commits for teams that commit without PRs)
-  joules settle <owner/repo> [--write]         settle PRs merged 14+ days ago (reverts, follow-up fixes)
-  joules action                                in GitHub Actions: scores on open and merge, settles on a schedule
+  joules settle <owner/repo> [--write]         settle PRs merged 14+ days ago (reverts, follow-up fixes); run it daily
 
   --model haiku        Claude model (alias or full id)
   --cache file.jsonl   where scores are kept (default joules-cache.jsonl)
@@ -71,21 +70,6 @@ async function scorePull(repo: string, pr: Pull, write: boolean) {
   console.log(reached.length ? `${write ? "Posted" : "Would post"} on ${reached.join(", ")}:\n${note}` : `No tracker knew ${ctx.tickets.join(", ")}`);
 }
 
-/** In GitHub Actions: score on open, score again and tell the tickets on merge, settle on a schedule. */
-async function action() {
-  const repo = process.env.GITHUB_REPOSITORY!;
-  const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH!, "utf8")) as { action?: string; pull_request?: Pull };
-  const pr = event.pull_request;
-  if (!pr) return settleRepo(repo, true);
-  if (event.action === "closed" && !pr.merged_at) return console.log("Closed without merging: nothing to score.");
-  if (isRelease(pr)) return console.log("A release PR: the PRs it carries are scored on their own.");
-  if (event.action !== "closed" && pr.draft) return console.log("A draft: scored when it's ready for review.");
-  if (event.action !== "closed" && readStamp(pr.body)?.stage === "open") return console.log("Already scored on open; it's scored again on merge.");
-  // Until the secret is added, say so instead of failing every PR's check.
-  if (!process.env.CLAUDE_CODE_OAUTH_TOKEN && !process.env.ANTHROPIC_API_KEY) return console.log("No Claude secret yet: add CLAUDE_CODE_OAUTH_TOKEN (claude setup-token) or ANTHROPIC_API_KEY to the repo.");
-  return scorePull(repo, pr, true);
-}
-
 const repos = values.repos.split(",").map((r) => r.trim()).filter(Boolean);
 const options = { repos, days: Number(values.days), cache: values.cache, model: values.model, concurrency: Number(values.concurrency) };
 
@@ -97,8 +81,7 @@ else if (command === "score") {
 } else if (command === "init") {
   const done = init(target ?? ".");
   console.log(done.length ? `Joules is in ${target ?? "this repo"}: ${done.join(", ")}` : "Already set up.");
-} else if (command === "action") await action();
-else if (command === "settle") await settleRepo(target ?? process.env.GITHUB_REPOSITORY!, values.write);
+} else if (command === "settle") await settleRepo(target ?? process.env.GITHUB_REPOSITORY!, values.write);
 else if (command === "backfill") {
   const scored = await collect({ ...options, compare: false });
   console.log(`${scored.length} PRs scored in ${values.cache}`);

@@ -37,12 +37,11 @@ export function parseRating(text: string): Rating {
   return { kind: top.kind, reach: top.reach, expert_hours: hours, ...(parts.length > 1 && { parts }), summary: r.summary, reason: r.reason };
 }
 
-/** Asks Claude through the Claude Code CLI: works with a Claude plan login, CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY. */
+/** Asks Claude through the Claude Code CLI, on whatever it's signed in with (a Claude plan: no API bill). */
 export async function rate(pr: PullContext, model: string): Promise<Score> {
   const proc = Bun.spawn(
     ["claude", "-p", "--model", model, "--tools", "", "--setting-sources", "", "--strict-mcp-config", "--no-session-persistence", "--system-prompt", RUBRIC],
-    // A workflow passes every secret it might have; an empty one must not shadow the one that's set.
-    { stdin: new Blob([promptOf(pr)]), stdout: "pipe", stderr: "pipe", cwd: process.env.TMPDIR ?? "/tmp", env: Object.fromEntries(Object.entries(process.env).filter(([, v]) => v)) },
+    { stdin: new Blob([promptOf(pr)]), stdout: "pipe", stderr: "pipe", cwd: process.env.TMPDIR ?? "/tmp" },
   );
   const [out, err, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
   if (code !== 0) throw new Error(`claude exited ${code}: ${(err || out).slice(0, 500)}`);

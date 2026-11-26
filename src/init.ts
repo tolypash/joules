@@ -15,7 +15,7 @@ type Settings = { hooks?: Record<string, { matcher?: string; hooks: { type: stri
 /**
  * Puts Joules into a repo so every agent working there scores its PRs with no setup of its own: the skill,
  * the pre-PR hook in the project's Claude settings (merged with what's there), a note in AGENTS.md or
- * CLAUDE.md for agents that read those, and the GitHub workflow. Running it again changes nothing.
+ * CLAUDE.md for agents that read those. Running it again changes nothing.
  */
 export function init(dir: string): string[] {
   // Read the settings before writing anything, so a file it can't parse leaves the repo untouched.
@@ -38,7 +38,6 @@ export function init(dir: string): string[] {
   write(".claude/skills/joules/rubric.md", "skill/joules/rubric.md");
   write(".claude/hooks/joules-pre-pr.sh", "hooks/pre-pr.sh");
   chmodSync(join(dir, ".claude/hooks/joules-pre-pr.sh"), 0o755);
-  if (!existsSync(join(dir, ".github/workflows/joules.yml"))) write(".github/workflows/joules.yml", "examples/joules.yml");
 
   const pre = (settings.hooks ??= {}).PreToolUse ?? [];
   if (!pre.some((h) => h.hooks?.some((c) => c.command === HOOK))) {
