@@ -6,10 +6,11 @@ import { DAY } from "./settle.ts";
 
 /**
  * The share card: one person's Joules over a window, as numbers only (no repo names, no PR titles), so it
- * is safe to post from private work. skill/joules/card.html draws it and works out the rest: Joules per
- * weekday, how many times the median engineer with AI that is, and the rank.
+ * is safe to post from private work. skill/joules/card.html draws it and works out the rest: output (Joules
+ * per weekday as a % of the pre-AI line, `baseline` when the team measured its own), how many times the
+ * median engineer with AI that is, and the rung reached.
  */
-export type Card = { who: string; period: string; joules: number; weekdays: number; prs: number; bars: number[] };
+export type Card = { who: string; period: string; joules: number; weekdays: number; prs: number; bars: number[]; baseline?: number };
 
 /** Windows ending now: the days counted, the days in one bar, and how the card names it. */
 export const PERIODS = {

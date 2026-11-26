@@ -2,7 +2,7 @@
 
 See the energy your team ships.
 
-![A Joules card: 1,612 Joules shipped in four weeks, 1.8× the median engineer shipping with AI](docs/card.jpg)
+![A Joules card: 1,007% output over four weeks, 1.8× the median engineer shipping with AI](docs/card.jpg)
 
 Joules gives every pull request a score for the value it delivers: what it does, who feels it and how hard it was. Not lines of code, not PR count. With AI writing thousands of lines in minutes, those numbers stopped meaning anything. A one-line fix to a payment bug can be worth more than a 5,000-line scaffold, and Joules says so.
 
@@ -41,12 +41,13 @@ bunx joules-cli card --period year --repos acme/shop,acme/api    # or week; any 
 
 It writes `joules-card.png` (when the machine has Chrome) and opens `joules-card.html`: the card, a Copy image button, and Post on X with the text already written. Or ask your agent to "share my Joules": the skill makes the same card with no CLI.
 
-- **Measured against engineers who ship with AI too:** your Joules per weekday as a multiple of today's median, and a place on the ladder: Pre-AI (8 J a weekday), Autocomplete (12.2), Vibe coder (27.3), Good (45.6, today's median), Cracked (117.4, the top 10%) and God (205.2, the highest measured).
+- **One number: your output.** Joules per weekday as a percentage of what an engineer shipped before AI (the same efficiency the team view shows), and next to it how many times the median engineer shipping with AI that is.
+- **A colour-coded ladder, drawn to scale:** Pre-AI (100%), Autocomplete (153%), Vibe coder (341%), Good (570%, today's median), Cracked (1,468%, the top 10%) and God (2,565%, the highest measured). The card takes the colour of the rung you reached.
 - **Numbers only.** No repo names and no PR titles, so it is safe to post from private work.
 - **Week, month or year:** the last 7 days, 4 weeks or 52 weeks, each with its skyline of Joules per day or per week.
-- **Cracked and God get a filled badge:**
 
-![A Cracked card: 38,420 Joules in 52 weeks, 3.2× the median](docs/card-cracked.jpg)
+
+![A Cracked card: 1,847% output over 52 weeks, 3.2× the median](docs/card-cracked.jpg)
 
 ## Set it up
 

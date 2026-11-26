@@ -21,7 +21,7 @@ const HELP = `joules: score the value each pull request ships
   joules stats --repos a/b,c/d [--days 30]     per engineer: weekly Joules, typical day, rework (--html out.html, --title, --names login=Name,…, --note, --people a,b, --baseline J from calibrate, --part-time login=0.5)
   joules calibrate --repos a/b,c/d             the pre-AI baseline: Joules per weekday of full-time engineers (--from 2024-10-01 --to 2024-12-31 --sample 12 --min-weeks 8; --commits for teams that commit without PRs)
   joules settle <owner/repo> [--write]         settle PRs merged 14+ days ago (reverts, follow-up fixes); run it daily
-  joules card [--period week|month|year]       your Joules as a card to share, against the median engineer with AI (--repos a/b,c/d, default this repo; --me login, default you; --html out.html; --names login=Name)
+  joules card [--period week|month|year]       your Joules as a card to share, against the median engineer with AI (--repos a/b,c/d, default this repo; --me login, default you; --html out.html; --names login=Name; --baseline J from calibrate)
 
   --model haiku        Claude model (alias or full id)
   --cache file.jsonl   where scores are kept (default joules-cache.jsonl)
@@ -124,13 +124,13 @@ else if (command === "score") {
   if (!(period in PERIODS)) throw new Error(`--period is week, month or year, got ${values.period}`);
   const me = values.me ?? (await gh<{ login: string }>("/user")).login;
   const scored = await collect({ ...options, repos: repos.length ? repos : [await originRepo()], days: PERIODS[period].days, compare: false });
-  const card = cardOf(scored.filter((s) => s.author === me), period, pairs(values.names)[me] ?? `@${me}`);
+  const card = { ...cardOf(scored.filter((s) => s.author === me), period, pairs(values.names)[me] ?? `@${me}`), ...(values.baseline && { baseline: Number(values.baseline) }) };
   if (!card.joules) throw new Error(`Nothing by ${me} merged in the last ${PERIODS[period].label}: check --repos and --me`);
   const page = values.html ?? "joules-card.html";
   const image = page.replace(/(\.html?)?$/, ".png");
   writeFileSync(page, cardHtml(card));
   const perWeekday = card.joules / card.weekdays;
-  console.log(`⚡ ${card.joules.toLocaleString("en-US")} J · ${card.period} · ${Math.round(perWeekday * 10) / 10} J a weekday, ${Math.round((perWeekday / GOOD) * 10) / 10}× the median engineer with AI`);
+  console.log(`⚡ ${Math.round((perWeekday / (card.baseline ?? BASELINE)) * 100).toLocaleString("en-US")}% output · ${card.period} · ${card.joules.toLocaleString("en-US")} J, ${Math.round((perWeekday / GOOD) * 10) / 10}× the median engineer with AI`);
   console.log(cardPng(page, image) ? `${image}: the card, ready to post` : "No Chrome found for the PNG: use Download PNG on the page (or set CHROME_PATH)");
   console.log(`${page}: open it to copy the image and post on X with the text ready`);
   // In a terminal, show it; an agent or a script gets the paths above.
