@@ -29,9 +29,9 @@ Fourteen days after merge the score settles (`joules settle`, run daily): a reve
 
 ## Set it up
 
-**In a repo:** run `bunx joules-cli init`, then commit what it adds. Claude Code gets the skill and a pre-PR hook that holds `gh pr create` until the PR has a score; other agents read the note it adds to AGENTS.md or CLAUDE.md.
+**In a repo** (needs [Bun](https://bun.sh)): run `bunx joules-cli init`, then commit what it adds. Claude Code gets the skill and a pre-PR hook that holds `gh pr create` until the PR has a score; other agents read the note it adds to AGENTS.md or CLAUDE.md.
 
-**Just the skill:** copy [skill/joules](skill/joules) (SKILL.md and rubric.md) into `~/.claude/skills/joules/` or a repo's `.claude/skills/joules/`.
+**Just the skill** (no Bun or Node needed): copy [skill/joules](skill/joules) (SKILL.md and rubric.md) into `~/.claude/skills/joules/` or a repo's `.claude/skills/joules/`.
 
 **Works on day one.** No history or setup needed: the levels are already measured.
 

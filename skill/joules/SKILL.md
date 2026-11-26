@@ -28,8 +28,6 @@ Joules measure the value a change ships, not its size: **expert hours × reach �
 6. If the PR names a ticket (a key like `ABC-123` in the branch, title or body) and you have a Linear or Jira tool, comment on that ticket: the block's first line, the PR title and link, and the reason.
 7. Tell the user the score in one line.
 
-With the CLI installed you can instead run `bunx joules-cli score <owner/repo#N> --write` once the PR exists.
-
 ## What's good: the measured numbers
 
 Use these when asked how an engineer or a team is doing. Add up the Joules in the block at the end of each PR they merged in a window (28 days reads well; once a PR has settled, use the settled score, `final.joules` in the block's JSON), divide by the weekdays in it, and compare.
@@ -52,12 +50,12 @@ So with AI the median engineer ships about 5.7× the Joules of the median engine
 | Good: today's median, with AI | 45.6 or more | 570% or more |
 | Cracked: today's top 10% | 117.4 or more | 1,468% or more |
 
-**A team's own baseline.** A team with its own history before AI can measure it with `bunx joules-cli calibrate --repos owner/repo --from 2024-07-01 --to 2024-12-31` (`--commits` when it didn't use PRs) and use that instead of 8. One product team measured 14.2 J (3 full-time engineers, July to December 2024); against it good is 321% and cracked 827%.
+**A team's own baseline.** A team with its own history before AI can measure it with the Joules CLI (needs [Bun](https://bun.sh)): `bunx joules-cli calibrate --repos owner/repo --from 2024-07-01 --to 2024-12-31` (`--commits` when it didn't use PRs) and use that instead of 8. One product team measured 14.2 J (3 full-time engineers, July to December 2024); against it good is 321% and cracked 827%.
 
 **Reading it fairly:**
 - Count weeks, not single PRs: one PR's score is an estimate.
 - After 14 days a score settles: a reverted PR counts 0, and each fix merged in those 14 days that names it (`#123`) takes a quarter off (never below a quarter of the score, nor below 1 J). A team whose PRs keep needing fixes reads lower than its raw total.
-- Work on a long-lived branch with no PR yet counts too: score each person's week of commits there as one change with the rubric (`joules stats` does this), so someone building a v2 doesn't read as idle.
+- Work on a long-lived branch with no PR yet counts too: score each person's week of commits there as one change with the rubric, so someone building a v2 doesn't read as idle.
 - Bots and release PRs (staging into master) are left out: the PRs they carry are scored on their own.
 - Someone who also works in repos you didn't include reads low; so does anyone whose PRs wait days for review, since a PR counts on the day it merges.
 
