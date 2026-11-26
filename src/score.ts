@@ -37,7 +37,7 @@ export function parseRating(text: string): Rating {
   return { kind: top.kind, reach: top.reach, expert_hours: hours, ...(parts.length > 1 && { parts }), summary: r.summary, reason: r.reason };
 }
 
-/** Asks Claude through the Claude Code CLI, on whatever it's signed in with (a Claude plan: no API bill). */
+/** Asks Claude through the Claude Code CLI, on whatever it's signed in with. */
 export async function rate(pr: PullContext, model: string): Promise<Score> {
   const proc = Bun.spawn(
     ["claude", "-p", "--model", model, "--tools", "", "--setting-sources", "", "--strict-mcp-config", "--no-session-persistence", "--system-prompt", RUBRIC],

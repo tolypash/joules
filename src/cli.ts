@@ -84,8 +84,7 @@ else if (command === "score") {
 } else if (command === "settle") {
   if (!target) throw new Error("expected owner/repo");
   await settleRepo(target, values.write);
-}
-else if (command === "backfill") {
+} else if (command === "backfill") {
   const scored = await collect({ ...options, compare: false });
   console.log(`${scored.length} PRs scored in ${values.cache}`);
 } else if (command === "report") {
