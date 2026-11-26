@@ -2,7 +2,7 @@ import type { Score } from "./score.ts";
 import type { Settlement } from "./settle.ts";
 
 /** What a PR carries in its description. `final` is set once the PR has settled (see settle.ts). */
-export type Stamp = Score & { v: 1; stage: "preview" | "open" | "merged"; final?: Settlement & { joules: number; at: string } };
+export type Stamp = Score & { v: 1; stage: "open" | "merged"; final?: Settlement & { joules: number; at: string } };
 
 const BLOCK = /<!-- joules:start -->[\s\S]*?<!-- joules:end -->/;
 

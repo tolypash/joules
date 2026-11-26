@@ -5,7 +5,7 @@ description: Score the value a pull request ships, in Joules, put the score in t
 
 # Joules
 
-Joules measure the value a change ships, not its size: **expert hours × reach × kind**. You score the PR as you open it; nothing else scores it later, so judge it honestly.
+Joules measure the value a change ships, not its size: **expert hours × reach × kind**. You score the PR as you open it, and this is the score that counts, so judge it honestly.
 
 ## Score this branch
 
@@ -25,7 +25,7 @@ Joules measure the value a change ships, not its size: **expert hours × reach �
 ```
 
 5. Open the PR as you were going to.
-6. If the PR names a ticket (a key like `ABC-123` in the branch, title or body) and you have a Linear or Jira tool, comment on that ticket: the block's first line, the PR title and link, and the reason. Skip it when you have no tracker tool.
+6. If the PR names a ticket (a key like `ABC-123` in the branch, title or body) and you have a Linear or Jira tool, comment on that ticket: the block's first line, the PR title and link, and the reason.
 7. Tell the user the score in one line.
 
 With the CLI installed you can instead run `bunx joules-cli score <owner/repo#N> --write` once the PR exists.

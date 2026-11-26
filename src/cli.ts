@@ -31,7 +31,7 @@ const { values, positionals } = parseArgs({
     write: { type: "boolean", default: false },
     repos: { type: "string", default: process.env.JOULES_REPOS ?? "" },
     days: { type: "string", default: "30" },
-    model: { type: "string", default: process.env.JOULES_MODEL || "haiku" },
+    model: { type: "string", default: "haiku" },
     cache: { type: "string", default: "joules-cache.jsonl" },
     concurrency: { type: "string", default: "6" },
     html: { type: "string" },
@@ -57,14 +57,14 @@ const [command, target] = positionals;
 /** "a=1,b=2" as { a: "1", b: "2" }. */
 const pairs = (s: string): Record<string, string> => Object.fromEntries(s.split(",").map((p) => p.split("=")).filter(([k, v]) => k && v));
 
-/** Scores a PR. With write it puts the block in the description and, once merged, posts on its tickets; without, it only says what it would post. */
+/** Scores a PR. With write it puts the block in the description and posts on its tickets; without, it only says what it would post. */
 async function scorePull(repo: string, pr: Pull, write: boolean) {
   const ctx = await pullContext(repo, pr);
   const score = await rate(ctx, values.model);
   const stamp: Stamp = { v: 1, stage: pr.merged_at ? "merged" : "open", ...score };
   console.log(`${repo}#${pr.number} ${pr.title}\n${headline(score)}\n${score.reason}`);
   if (write) await gh(`/repos/${repo}/pulls/${pr.number}`, { method: "PATCH", body: { body: withStamp(pr.body, stamp) } });
-  if (!pr.merged_at || !ctx.tickets.length) return;
+  if (!ctx.tickets.length) return;
   const note = `${headline(score)}: ${pr.title} (${pr.html_url})\n${score.reason}`;
   const reached = await commentOnTickets(ctx.tickets, note, !write);
   console.log(reached.length ? `${write ? "Posted" : "Would post"} on ${reached.join(", ")}:\n${note}` : `No tracker knew ${ctx.tickets.join(", ")}`);
@@ -81,7 +81,10 @@ else if (command === "score") {
 } else if (command === "init") {
   const done = init(target ?? ".");
   console.log(done.length ? `Joules is in ${target ?? "this repo"}: ${done.join(", ")}` : "Already set up.");
-} else if (command === "settle") await settleRepo(target ?? process.env.GITHUB_REPOSITORY!, values.write);
+} else if (command === "settle") {
+  if (!target) throw new Error("expected owner/repo");
+  await settleRepo(target, values.write);
+}
 else if (command === "backfill") {
   const scored = await collect({ ...options, compare: false });
   console.log(`${scored.length} PRs scored in ${values.cache}`);

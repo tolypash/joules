@@ -19,11 +19,11 @@ Claude reads the PR (title, description, linked ticket, the diff without lockfil
 
 **Joules = expert hours × reach × kind.** Every score comes with one line saying why, so anyone can see where the points came from. The rubric is [one file](skill/joules/rubric.md).
 
-Fourteen days after merge the score settles: a reverted PR drops to 0 and each follow-up fix that points back at it takes a quarter off. Value that sticks counts most.
+Fourteen days after merge the score settles (`joules settle`, run daily): a reverted PR drops to 0 and each follow-up fix that points back at it takes a quarter off. Value that sticks counts most.
 
 ## What you get
 
-- **On every PR:** the agent that opens it (Claude Code, Codex, Cursor) scores it and puts the score in the description. Your team already opens PRs with an agent, so there's nothing to run and no secret to add.
+- **On every PR:** the agent that opens it (Claude Code, Codex, Cursor) scores it and puts the score in the description. Your team already opens PRs with an agent, so scoring needs no server and no secret.
 - **On the ticket:** when the PR names a Linear or Jira issue (`ABC-123` in the branch, title or description) and the agent has a tracker tool, it posts the score there too.
 - **Team view:** `joules report` gives a table per person for the last 24 hours, 7 days and the window you pick (`--days`), and with `--html` each person's highest and lowest-value PRs. Good for a weekly shout-out, a sprint review, or spotting someone who's stuck and needs a hand.
 
@@ -45,13 +45,15 @@ bunx joules-cli settle acme/shop --write          # run daily: reverts and follo
 bunx joules-cli stats --repos acme/shop --days 90 --html team.html   # per person: weekly Joules, typical day, rework
 ```
 
+With `--write`, `score` and `settle` post on the linked ticket when `LINEAR_API_KEY` (or `JIRA_BASE_URL`, `JIRA_EMAIL` and `JIRA_API_TOKEN`) is set.
+
 `stats` counts over the same scores as `report` (scoring PRs not yet in the cache); the counting itself is plain code, so the same scores give the same numbers every time. Scores are kept in `joules-cache.jsonl` so nothing is scored twice. A report reads the scores agents wrote in PRs, and scores the rest.
 
 ## Good to know
 
 - Scores are an estimate from a model reading the change. Treat a week or a month as the signal, not a single PR.
 - Bots (Dependabot and friends) are scored but left out of the team table.
-- Nothing leaves your GitHub except the PR text sent to Claude to score it.
+- Nothing leaves your GitHub except the PR text sent to Claude to score it, and the score posted on its ticket.
 
 ## License
 
