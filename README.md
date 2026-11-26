@@ -32,6 +32,8 @@ Fourteen days after merge the score settles: a reverted PR drops to 0 and each f
 
 **Quickest:** run `bunx joules-cli init` in a repo, commit what it adds, then add the secret below. Claude Code gets the skill and the pre-PR hook from the repo, other agents read the note in AGENTS.md or CLAUDE.md, and the workflow scores anything still unscored.
 
+**Works on day one.** No history or setup needed: efficiency is measured against a typical full-time engineer before AI, 8 J a day, measured once on 39 engineers at Twenty, Novu, Formbricks and Documenso (Q4 2024). A team with its own pre-AI history can measure its own with `joules calibrate` (`--commits` if it didn't use PRs then) and pass `--baseline`.
+
 **1. The Action.** Copy [examples/joules.yml](examples/joules.yml) to `.github/workflows/joules.yml` and add one secret:
 
 - `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token` (runs on your Claude plan), or

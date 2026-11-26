@@ -38,8 +38,7 @@ export async function collect(o: Options): Promise<Scored[]> {
       if (!cache.has(p.html_url) && stamp) cache.set(p.html_url, { ...entryOf(repo, p), score: stamp });
       if (!cache.has(p.html_url)) missing.push({ entry: entryOf(repo, p), context: () => pullContext(repo, p) });
     }
-    const merged = new Set(pulls.map((p) => p.merge_commit_sha ?? ""));
-    for (const w of await branchWork(repo, since, merged)) {
+    for (const w of await branchWork(repo, since, pulls)) {
       const item = { entry: { repo, number: 0, title: w.title, author: w.author, url: w.url, merged_at: w.merged_at }, context: () => branchContext(repo, w) };
       work.push(item);
       if (!cache.has(w.url)) missing.push(item);

@@ -1,4 +1,4 @@
-import { filesAndDiff, gh, isBot, isIntegrationBranch, pages, type PullContext, type PullFile } from "./github.ts";
+import { filesAndDiff, gh, isBot, isIntegrationBranch, pages, type Pull, type PullContext, type PullFile } from "./github.ts";
 import { DAY } from "./settle.ts";
 
 /**
@@ -10,9 +10,10 @@ export type BranchWork = { url: string; title: string; author: string; merged_at
 
 export type Commit = { sha: string; parents: unknown[]; author: { login: string; type: string } | null; commit: { author: { date: string } } };
 
-/** `merged`: the merge commits of PRs already counted, so a PR squash-merged into a branch isn't counted again. */
-export async function branchWork(repo: string, since: Date, merged: Set<string>): Promise<BranchWork[]> {
+/** `pulls`: the merged PRs already counted, so nothing in them is counted again as branch work. */
+export async function branchWork(repo: string, since: Date, pulls: Pull[]): Promise<BranchWork[]> {
   const base = (await gh<{ default_branch: string }>(`/repos/${repo}`)).default_branch;
+  const merged = new Set(pulls.map((p) => p.merge_commit_sha ?? ""));
   const withPr = new Set((await pages<{ head: { ref: string } }>(`/repos/${repo}/pulls?state=all`)).map((p) => p.head.ref));
   const branches = (await pages<{ name: string }>(`/repos/${repo}/branches`)).map((b) => b.name).filter((b) => b !== base && !withPr.has(b) && !isIntegrationBranch(b));
   const found = new Map<string, Commit & { on: Set<string> }>();
@@ -25,12 +26,27 @@ export async function branchWork(repo: string, since: Date, merged: Set<string>)
       found.set(c.sha, seen);
     }
   }
-  const unmerged: (Commit & { on: Set<string> })[] = [];
-  for (const c of found.values()) {
-    // In a merged PR it was scored there; an open or closed PR (a branch built on this one) counts it nowhere.
-    if (!(await gh<{ merged_at: string | null }[]>(`/repos/${repo}/commits/${c.sha}/pulls`)).some((p) => p.merged_at)) unmerged.push(c);
+  const inMergedPr = await mergedPrCommits(repo, [...found.keys()]);
+  return weeksOf(repo, [...found.values()].filter((c) => !inMergedPr.has(c.sha)));
+}
+
+/**
+ * Which of these commits belong to a merged PR (scored there already; one in an open or closed PR counts
+ * nowhere else, so it stays). Asked 50 at a time through GraphQL, so a long v2 branch costs a few calls.
+ */
+async function mergedPrCommits(repo: string, shas: string[]): Promise<Set<string>> {
+  const [owner, name] = repo.split("/");
+  const out = new Set<string>();
+  for (let i = 0; i < shas.length; i += 50) {
+    const batch = shas.slice(i, i + 50);
+    const fields = batch.map((sha, j) => `c${j}: object(oid: "${sha}") { ... on Commit { associatedPullRequests(first: 5) { nodes { mergedAt } } } }`).join("\n");
+    type Found = { associatedPullRequests: { nodes: { mergedAt: string | null }[] } } | null;
+    const res = await gh<{ data: { repository: Record<string, Found> } }>("/graphql", { method: "POST", body: { query: `{ repository(owner: "${owner}", name: "${name}") { ${fields} } }` } });
+    batch.forEach((sha, j) => {
+      if (res.data.repository[`c${j}`]?.associatedPullRequests.nodes.some((p) => p.mergedAt)) out.add(sha);
+    });
   }
-  return weeksOf(repo, unmerged);
+  return out;
 }
 
 /** One unit per person per week of commits. With `on` (the branches they sit on) it reads as unmerged work. */
