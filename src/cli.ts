@@ -101,9 +101,11 @@ else if (command === "backfill") {
   await pool(unnamed, options.concurrency, async (login) => {
     names[login] = (await gh<{ name: string | null }>(`/users/${login}`)).name ?? login;
   });
-  const rows = statsOf(scored, options.days, names);
+  // Whole weeks, so the oldest bar is never a part-week that reads as a slump.
+  const days = Math.max(1, Math.round(options.days / 7)) * 7;
+  const rows = statsOf(scored, days, names);
   console.log(JSON.stringify(rows, null, 1));
-  if (values.html) writeFileSync(values.html, statsHtml(rows, { title: values.title, days: options.days, repos, note: values.note }));
+  if (values.html) writeFileSync(values.html, statsHtml(rows, { title: values.title, days, repos, note: values.note }));
 } else {
   console.error(`Unknown command ${command}\n\n${HELP}`);
   process.exit(1);

@@ -48,9 +48,9 @@ export async function markAi(scored: Scored[], cache: string, concurrency: numbe
   );
 }
 
+/** `days` is a whole number of weeks (cli.ts rounds it), so the bars add up to the totals. */
 export function statsOf(scored: Scored[], days: number, names: Record<string, string>, now = Date.now()): Stats[] {
-  // Whole weeks only, so the oldest bar never shows a part-week as a slump.
-  const weeks = Math.floor(days / 7);
+  const weeks = Math.round(days / 7);
   const by = new Map<string, Scored[]>();
   for (const s of scored) {
     if (now - new Date(s.merged_at).getTime() >= days * DAY) continue;
@@ -68,7 +68,7 @@ export function statsOf(scored: Scored[], days: number, names: Record<string, st
       const day = s.merged_at.slice(0, 10);
       perDay.set(day, (perDay.get(day) ?? 0) + s.joules);
       const week = weeks - 1 - Math.floor((now - new Date(s.merged_at).getTime()) / (7 * DAY));
-      if (week >= 0) weekly[week]! += s.joules;
+      weekly[week]! += s.joules;
       if (s.settlement) {
         settled++;
         if (s.settlement.reverted || s.settlement.fixes.length) fixed++;
