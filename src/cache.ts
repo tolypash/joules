@@ -1,10 +1,8 @@
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import type { Score } from "./score.ts";
 
-/** One scored PR, kept so a report or backfill never scores the same PR twice. */
-export type Entry = { repo: string; number: number; title: string; author: string; url: string; merged_at: string; score: Score };
-
-export const keyOf = (repo: string, number: number) => `${repo}#${number}`;
+/** One scored PR (or a week of branch work, with `branches`), kept by its URL so nothing is scored twice. */
+export type Entry = { repo: string; number: number; title: string; author: string; url: string; merged_at: string; score: Score; branches?: string[] };
 
 export function loadCache(path: string): Map<string, Entry> {
   const out = new Map<string, Entry>();
@@ -12,7 +10,7 @@ export function loadCache(path: string): Map<string, Entry> {
   for (const line of readFileSync(path, "utf8").split("\n")) {
     if (!line.trim()) continue;
     const e = JSON.parse(line) as Entry;
-    out.set(keyOf(e.repo, e.number), e);
+    out.set(e.url, e);
   }
   return out;
 }

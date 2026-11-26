@@ -6,6 +6,7 @@ import { gh, isRelease, type Pull, pullContext } from "./github.ts";
 import { collect, html, leaderboard, markdown, pool } from "./report.ts";
 import { rate } from "./score.ts";
 import { settleRepo } from "./settle.ts";
+import { calibrate } from "./calibrate.ts";
 import { statsHtml, statsOf } from "./stats.ts";
 import { commentOnTickets } from "./tickets.ts";
 
@@ -14,7 +15,8 @@ const HELP = `joules: score the value each pull request ships
   joules score <owner/repo#123> [--write]      score one PR (--write puts the block in its description and posts on its tickets)
   joules report --repos a/b,c/d [--days 30]    leaderboard per engineer (--html out.html, --compare, --compact)
   joules backfill --repos a/b,c/d --days 90    score past PRs into the cache, nothing written to GitHub
-  joules stats --repos a/b,c/d [--days 30]     per engineer: weekly Joules, typical day, rework (--html out.html, --title, --names login=Name,…, --note)
+  joules stats --repos a/b,c/d [--days 30]     per engineer: weekly Joules, typical day, rework (--html out.html, --title, --names login=Name,…, --note, --people a,b)
+  joules calibrate --repos a/b,c/d             the pre-AI baseline: Joules per weekday of full-time engineers (--from 2024-10-01 --to 2024-12-31 --sample 12 --min-weeks 8)
   joules settle <owner/repo> [--write]         settle PRs merged 14+ days ago (reverts, follow-up fixes)
   joules action                                in GitHub Actions: scores on open and merge, settles on a schedule
 
@@ -37,6 +39,11 @@ const { values, positionals } = parseArgs({
     title: { type: "string", default: "Joules" },
     names: { type: "string", default: "" },
     note: { type: "string" },
+    people: { type: "string", default: "" },
+    from: { type: "string", default: "2024-10-01" },
+    to: { type: "string", default: "2024-12-31" },
+    sample: { type: "string", default: "12" },
+    "min-weeks": { type: "string", default: "8" },
     help: { type: "boolean", short: "h", default: false },
   },
 });
@@ -102,9 +109,17 @@ else if (command === "backfill") {
   await pool(unnamed, options.concurrency, async (login) => {
     names[login] = (await gh<{ name: string | null }>(`/users/${login}`)).name ?? login;
   });
-  const rows = statsOf(scored, days, names);
+  const people = new Set(values.people.split(",").filter(Boolean));
+  const rows = statsOf(people.size ? scored.filter((s) => people.has(s.author)) : scored, days, names);
   console.log(JSON.stringify(rows, null, 1));
   if (values.html) writeFileSync(values.html, statsHtml(rows, { title: values.title, days, repos, note: values.note }));
+} else if (command === "calibrate") {
+  const rows = await calibrate({ ...options, from: new Date(`${values.from}T00:00:00Z`), to: new Date(`${values.to}T23:59:59Z`), sample: Number(values.sample), minWeeks: Number(values["min-weeks"]) });
+  for (const r of rows) console.log(`${r.perWeekday} J/weekday  ${r.author} (${r.repo}): ${r.prs} PRs, ${r.perPr} J per PR from ${r.sampled}`);
+  const sorted = rows.map((r) => r.perWeekday).sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const median = sorted.length % 2 ? sorted[mid] : ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2;
+  console.log(`\nMedian of ${rows.length} engineers: ${median} J per weekday`);
 } else {
   console.error(`Unknown command ${command}\n\n${HELP}`);
   process.exit(1);

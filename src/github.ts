@@ -38,7 +38,7 @@ export type Pull = {
   head: { ref: string };
 };
 
-type PullFile = { filename: string; additions: number; deletions: number; patch?: string; skipped?: boolean };
+export type PullFile = { filename: string; additions: number; deletions: number; patch?: string; skipped?: boolean };
 
 /** What the model reads about a PR. */
 export type PullContext = { repo: string; number: number; title: string; body: string; author: string; tickets: string[]; files: PullFile[]; diff: string };
@@ -56,9 +56,15 @@ export async function pullContext(repo: string, pr: Pull): Promise<PullContext> 
   const files: PullFile[] = [];
   for (let page = 1; page <= 3; page++) {
     const batch = await gh<PullFile[]>(`/repos/${repo}/pulls/${pr.number}/files?per_page=100&page=${page}`);
-    for (const f of batch) files.push({ ...f, skipped: SKIP.test(f.filename) });
+    files.push(...batch);
     if (batch.length < 100) break;
   }
+  return { repo, number: pr.number, title: pr.title, body: withoutStamp(pr.body), author: pr.user.login, tickets: ticketsOf(pr), ...filesAndDiff(files) };
+}
+
+/** The file list (lockfiles and generated code marked) and a diff trimmed to what the model reads. */
+export function filesAndDiff(raw: PullFile[]): Pick<PullContext, "files" | "diff"> {
+  const files = raw.map((f) => ({ ...f, skipped: SKIP.test(f.filename) }));
   let diff = "";
   for (const f of files) {
     if (f.skipped || !f.patch || diff.length >= DIFF_BUDGET) continue;
@@ -66,16 +72,7 @@ export async function pullContext(repo: string, pr: Pull): Promise<PullContext> 
     diff += `--- ${f.filename}\n${patch}\n`;
   }
   if (diff.length > DIFF_BUDGET) diff = `${diff.slice(0, DIFF_BUDGET)}\n… (rest of the diff cut)`;
-  return {
-    repo,
-    number: pr.number,
-    title: pr.title,
-    body: withoutStamp(pr.body),
-    author: pr.user.login,
-    tickets: ticketsOf(pr),
-    files: files.map(({ patch: _, ...f }) => f),
-    diff,
-  };
+  return { files: files.map(({ patch: _, ...f }) => f), diff };
 }
 
 /** Merged PRs in a repo since a date, newest first. */
@@ -92,5 +89,7 @@ export async function mergedSince(repo: string, since: Date): Promise<Pull[]> {
 export const isBot = (p: Pull) => p.user.type === "Bot" || p.user.login.endsWith("[bot]");
 
 /** A release or branch-promotion PR (staging into master) carries other PRs that were scored on their own. */
-export const isRelease = (p: Pull) =>
-  /^release(:|\s+v?\d)/i.test(p.title) || /(^|\/)(release|staging|develop|dev|main|master)(\/|$)|merge-staging|staging-master/i.test(p.head.ref);
+export const isRelease = (p: Pull) => /^release(:|\s+v?\d)/i.test(p.title) || isIntegrationBranch(p.head.ref);
+
+/** staging, master, release/2.6 and the like: branches that carry other people's work along. */
+export const isIntegrationBranch = (ref: string) => /(^|\/)(release|staging|develop|dev|main|master)(\/|$)|merge-staging|staging-master/i.test(ref);

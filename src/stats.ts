@@ -18,16 +18,20 @@ export type Stats = {
   /** Settled PRs (merged 14+ days ago) that were reverted or fixed again, out of all settled ones. */
   rework: { fixed: number; settled: number };
   weekly: number[];
-  /** Joules per weekday in the window, as a multiple of what a pre-AI senior ships (PRE_AI_DAY). */
-  pace: number;
+  /** Joules per weekday against a typical engineer before AI (BASELINE), in %: 100 is that engineer. */
+  efficiency: number;
+  /** Joules from weeks of work on branches with no PR, already in `joules`. */
+  unmerged: number;
 };
 
 /**
- * A senior engineer before AI shipped about 6 solid hours of customer-facing work a day: 6 × reach 3 = 18 J.
- * Pace 1 is that; the tiers say how much AI is multiplying someone.
+ * Joules per weekday of the median full-time engineer before AI (Q4 2024, before Claude 3.7 and agentic
+ * coding), measured by `joules calibrate` over our repos and public product repos. 100% is that engineer.
  */
-export const PRE_AI_DAY = 18;
-export const tierOf = (pace: number) => (pace >= 4 ? "cracked" : pace >= 2 ? "ideal" : pace >= 1 ? "good" : "behind");
+export const BASELINE = 8.5;
+
+/** Red up to 100% (no gain on pre-AI), yellow at 300%, green from 500%: heat, not a verdict. */
+const heat = (pct: number) => `hsl(${Math.round(Math.min(120, Math.max(0, ((pct - 100) / 400) * 120)))}, 85%, 78%)`;
 
 const median = (xs: number[]) => {
   if (!xs.length) return 0;
@@ -63,17 +67,19 @@ export function statsOf(scored: Scored[], days: number, names: Record<string, st
       }
     }
     const joules = mine.reduce((a, s) => a + s.joules, 0);
+    const prs = mine.filter((s) => !s.branches);
     out.push({
       author,
       name: names[author] ?? author,
       joules,
-      prs: mine.length,
+      prs: prs.length,
       activeDays: perDay.size,
       typicalDay: median([...perDay.values()]),
-      typicalPr: median(mine.map((s) => s.joules)),
+      typicalPr: median(prs.map((s) => s.joules)),
       rework: { fixed, settled },
       weekly,
-      pace: Math.round((joules / workdays(days, new Date(now)) / PRE_AI_DAY) * 10) / 10,
+      efficiency: Math.round((joules / workdays(days, new Date(now)) / BASELINE) * 100),
+      unmerged: joules - prs.reduce((a, s) => a + s.joules, 0),
     });
   }
   return out.sort((a, b) => b.joules - a.joules);
@@ -99,10 +105,10 @@ export function statsHtml(rows: Stats[], o: { title: string; days: number; repos
   let body = "";
   for (const r of rows) {
     body += `<tr><td class="who">${esc(r.name)}</td>
-<td class="total"><b>${r.joules.toLocaleString("en-GB")}</b><span class="bar"><i style="width:${Math.round((r.joules / max) * 100)}%"></i></span></td>
+<td class="total"><b>${r.joules.toLocaleString("en-GB")}</b>${r.unmerged ? `<small>incl. ${r.unmerged.toLocaleString("en-GB")} unmerged</small>` : ""}<span class="bar"><i style="width:${Math.round((r.joules / max) * 100)}%"></i></span></td>
 <td>${r.prs}</td><td>${r.activeDays}</td><td>${r.typicalDay}</td><td>${r.typicalPr}</td>
 <td>${pct(r.rework.fixed, r.rework.settled)}<small>${r.rework.fixed} of ${r.rework.settled}</small></td>
-<td class="pace ${tierOf(r.pace)}"><b>${r.pace}×</b><small>${tierOf(r.pace)}</small></td>
+<td class="pace" style="background:${heat(r.efficiency)}"><b>${r.efficiency}%</b></td>
 <td class="weeks">${weeklyBars(r.weekly, maxWeek)}</td></tr>`;
   }
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(o.title)}</title><style>
@@ -119,18 +125,17 @@ td.total b { font-size: 17px } .bar { display: block; height: 6px; margin-top: 5
 td.weeks { text-align: left } svg rect { fill: #d97706 } svg .base { stroke: #ccc; stroke-width: 1 }
 .how { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 28px; margin-top: 24px; font-size: 12.5px; color: #444; line-height: 1.45 }
 .how b { color: #111 }
-td.pace { text-align: center; border-radius: 6px; border-bottom: 2px solid #fff } td.pace b { font-size: 16px } td.pace small { color: #333 }
-.behind { background: #fecaca } .good { background: #fef08a } .ideal { background: #bbf7d0 } .cracked { background: #4ade80 }
+td.pace { text-align: center; border-radius: 6px; border-bottom: 2px solid #fff } td.pace b { font-size: 17px }
 .note { background: #fff7ed; border-left: 3px solid #d97706; padding: 8px 12px; font-size: 13px; color: #333; margin: -8px 0 18px }
 </style></head><body>
 <h1><span>⚡</span> ${esc(o.title)}</h1>
 <div class="sub">Last ${o.days} days to ${date} · ${esc(o.repos.map((r) => r.split("/")[1]).join(", "))} · release PRs and bots left out</div>
 ${o.note ? `<div class="note">${esc(o.note)}</div>` : ""}
-<table><tr><th>Engineer</th><th>Joules<br>(value shipped)</th><th>PRs</th><th>Days<br>shipping</th><th>Typical<br>day (J)</th><th>Typical<br>PR (J)</th><th>Needed a<br>fix after</th><th>Pace vs a<br>pre-AI senior</th><th style="text-align:left">Joules per week, oldest to newest</th></tr>${body}</table>
+<table><tr><th>Engineer</th><th>Joules<br>(value shipped)</th><th>PRs</th><th>Days<br>shipping</th><th>Typical<br>day (J)</th><th>Typical<br>PR (J)</th><th>Needed a<br>fix after</th><th>Efficiency</th><th style="text-align:left">Joules per week, oldest to newest</th></tr>${body}</table>
 <div class="how">
-<div><b>Joules</b> is the value of merged work: how long a senior engineer would need without AI × who it reaches (customers 3, the team 2, internal systems 1.5, only developers 1) × what it is (feature, fix or speed-up 1, refactor 0.7, tests 0.6, docs or chores 0.4, dependency bumps 0.3). Claude scores each PR; everything on this page is counted by plain code. A small fix is about 3 J, a solid feature 30 to 100 J.</div>
-<div><b>Typical day</b> is the middle value over the days someone merged anything, so one huge day doesn't skew it. <b>Typical PR</b> is the same for single PRs.</div>
-<div><b>Pace</b> is Joules per weekday ÷ ${PRE_AI_DAY}, what a senior engineer shipped before AI (about 6 solid hours of customer work a day). <span class="behind">&nbsp;behind&nbsp;</span> under 1×, <span class="good">&nbsp;good&nbsp;</span> 1 to 2×, <span class="ideal">&nbsp;ideal&nbsp;</span> 2 to 4×, <span class="cracked">&nbsp;cracked&nbsp;</span> 4× and up. Part-timers and people working in other repos read low.</div>
+<div><b>Joules</b> is the value of the work (merged PRs, plus commits on branches with no PR): how long a senior engineer would need without AI × who it reaches (customers 3, the team 2, internal systems 1.5, only developers 1) × what it is (feature, fix or speed-up 1, refactor 0.7, tests 0.6, docs or chores 0.4, dependency bumps 0.3). Claude scores each PR; everything on this page is counted by plain code. A small fix is about 3 J, a solid feature 30 to 100 J.</div>
+<div><b>Typical day</b> is the middle value over the days someone shipped anything, so one huge day doesn't skew it. <b>Typical PR</b> is the same for single PRs.</div>
+<div><b>Efficiency</b> is Joules per weekday against a typical full-time engineer before AI (${BASELINE} J a day: the median of 38 full-time engineers on Twenty, Novu, Formbricks, Documenso and our own repos, work merged in Q4 2024, before Claude 3.7 and agentic coding). 100% is that engineer; 500% ships five times as much. Red is no gain on that, yellow 300%, green 500% and up. Part-timers and people working in other repos read low.</div>
 <div><b>Needed a fix after</b>: PRs merged ${SETTLE_DAYS}+ days ago that were reverted or fixed again by a later PR pointing back at them. Lower is better; it only sees fixes that link the PR.</div>
 </div></body></html>`;
 }

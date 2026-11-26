@@ -1,6 +1,7 @@
 import { readStamp, settledNote } from "./block.ts";
-import { type Entry, keyOf, loadCache, saveEntry } from "./cache.ts";
-import { isBot, isRelease, mergedSince, type Pull, pullContext } from "./github.ts";
+import { branchContext, branchWork } from "./branches.ts";
+import { type Entry, loadCache, saveEntry } from "./cache.ts";
+import { isBot, isRelease, mergedSince, type Pull, type PullContext, pullContext } from "./github.ts";
 import { KINDS, REACH, rate, type Score } from "./score.ts";
 import { DAY, finalJoules, isSettled, SETTLE_DAYS, type Settlement, settlementOf } from "./settle.ts";
 
@@ -18,43 +19,56 @@ export async function pool<T>(items: T[], size: number, work: (item: T) => Promi
 
 const entryOf = (repo: string, p: Pull, score: Score): Entry => ({ repo, number: p.number, title: p.title, author: p.user.login, url: p.html_url, merged_at: p.merged_at!, score });
 
-/** Every human PR (releases left out) merged in the window (twice the window with `compare`), with its Joules: from the cache, the PR's own block, or scored now. */
+/**
+ * Every human PR (releases left out) merged in the window (twice the window with `compare`), plus each
+ * person's weeks of work on branches with no PR, with their Joules: from the cache, the PR's own block,
+ * or scored now.
+ */
 export async function collect(o: Options): Promise<Scored[]> {
   const cache = loadCache(o.cache);
   const since = new Date(Date.now() - o.days * DAY * (o.compare ? 2 : 1));
   const byRepo = new Map<string, Pull[]>();
-  const missing: [string, Pull][] = [];
+  const work: { entry: Omit<Entry, "score">; context: () => Promise<PullContext> }[] = [];
+  const missing: typeof work = [];
   for (const repo of o.repos) {
     const pulls = (await mergedSince(repo, since)).filter((p) => !isBot(p) && !isRelease(p));
     byRepo.set(repo, pulls);
     for (const p of pulls) {
-      const key = keyOf(repo, p.number);
       const stamp = readStamp(p.body);
-      if (!cache.has(key) && stamp) cache.set(key, entryOf(repo, p, stamp));
-      if (!cache.has(key)) missing.push([repo, p]);
+      if (!cache.has(p.html_url) && stamp) cache.set(p.html_url, entryOf(repo, p, stamp));
+      if (!cache.has(p.html_url)) missing.push({ entry: entryOf(repo, p, undefined as never), context: () => pullContext(repo, p) });
+    }
+    for (const w of await branchWork(repo, since)) {
+      const item = { entry: { repo, number: 0, title: w.title, author: w.author, url: w.url, merged_at: w.at, branches: w.branches }, context: () => branchContext(repo, w) };
+      work.push(item);
+      if (!cache.has(w.url)) missing.push(item);
     }
   }
-  if (missing.length) console.error(`Scoring ${missing.length} PRs`);
+  if (missing.length) console.error(`Scoring ${missing.length} PRs and weeks of branch work`);
   let done = 0;
-  await pool(missing, o.concurrency, async ([repo, p]) => {
+  await pool(missing, o.concurrency, async ({ entry, context }) => {
     try {
-      const e = entryOf(repo, p, await rate(await pullContext(repo, p), o.model));
-      cache.set(keyOf(repo, p.number), e);
+      const e: Entry = { ...entry, score: await rate(await context(), o.model) };
+      cache.set(e.url, e);
       saveEntry(o.cache, e);
     } catch (err) {
-      console.error(`${repo}#${p.number}: ${(err as Error).message}`);
+      console.error(`${entry.url}: ${(err as Error).message}`);
     }
     if (++done % 25 === 0) console.error(`${done}/${missing.length}`);
   });
   const out: Scored[] = [];
-  for (const [repo, pulls] of byRepo) {
+  for (const [, pulls] of byRepo) {
     for (const p of pulls) {
-      const e = cache.get(keyOf(repo, p.number));
+      const e = cache.get(p.html_url);
       if (!e) continue;
       const settled = readStamp(p.body)?.final;
       const settlement = settled ?? (isSettled(p.merged_at!) ? settlementOf(p, pulls) : undefined);
       out.push({ ...e, joules: settled?.joules ?? (settlement ? finalJoules(e.score.joules, settlement) : e.score.joules), settlement });
     }
+  }
+  for (const { entry } of work) {
+    const e = cache.get(entry.url);
+    if (e) out.push({ ...e, joules: e.score.joules });
   }
   return out;
 }
@@ -79,7 +93,7 @@ export function leaderboard(scored: Scored[], days: number, compare: boolean, no
     if (age < 7 * DAY) row.week += s.joules;
     if (age < days * DAY) {
       row.total += s.joules;
-      row.prs++;
+      if (!s.branches) row.prs++;
       row.top.push(s);
     } else if (row.previous !== undefined && age < 2 * days * DAY) row.previous += s.joules;
   }
