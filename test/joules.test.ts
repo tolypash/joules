@@ -4,6 +4,7 @@ import { isRelease, type Pull } from "../src/github.ts";
 import { leaderboard, type Scored } from "../src/report.ts";
 import { joulesOf, parseRating } from "../src/score.ts";
 import { finalJoules, settlementOf } from "../src/settle.ts";
+import { statsOf } from "../src/stats.ts";
 import { ticketsIn } from "../src/tickets.ts";
 
 const stamp: Stamp = { v: 1, stage: "open", kind: "feature", reach: "customers", expert_hours: 12, summary: "Tips at checkout", reason: "Touches payments.", joules: 36, model: "haiku", scored_at: "2026-11-26T00:00:00Z" };
@@ -75,4 +76,25 @@ test("release and promotion PRs are told apart from real work", () => {
   expect(isRelease(p("fix(menu): releases the lock", "claude/millwicks-menu-d533ab"))).toBe(false);
   expect(isRelease(p("Release notes page", "feat/release-notes"))).toBe(false);
   expect(isRelease(p("Release 2.7", "feat/x"))).toBe(true);
+});
+
+test("stats count weeks, typical day and PR, rework and Claude-credited PRs", () => {
+  const now = new Date("2026-11-26T12:00:00Z").getTime();
+  const s = (joules: number, daysAgo: number, extra: Partial<Scored> = {}): Scored => ({
+    repo: "o/r", number: joules, title: "", author: "ann", url: "", merged_at: new Date(now - daysAgo * 86_400_000).toISOString(), score: { ...stamp, joules }, joules, ...extra,
+  });
+  const [row] = statsOf(
+    [
+      s(10, 1, { ai: true }),
+      s(20, 1),
+      s(5, 20, { settlement: { reverted: false, fixes: [7] } }),
+      s(30, 20, { settlement: { reverted: false, fixes: [] } }),
+      s(99, 40),
+    ],
+    28,
+    { ann: "Ann" },
+    now,
+  );
+  expect(row).toMatchObject({ name: "Ann", joules: 65, prs: 4, activeDays: 2, typicalDay: 33, typicalPr: 15, rework: { fixed: 1, settled: 2 }, ai: 1 });
+  expect(row!.weekly).toEqual([0, 35, 0, 30]);
 });
