@@ -32,7 +32,7 @@ With the CLI installed you can instead run `bunx joules-cli score <owner/repo#N>
 
 ## What's good: the measured numbers
 
-Use these when asked how an engineer or a team is doing. Add up the Joules in the score at the end of each PR they merged in a window (28 days reads well; once a PR has settled, use its settled score, `final.joules`), divide by the weekdays in it, and compare.
+Use these when asked how an engineer or a team is doing. Add up the Joules in the block at the end of each PR they merged in a window (28 days reads well; once a PR has settled, use the settled score, `final.joules` in the block's JSON), divide by the weekdays in it, and compare.
 
 **Joules per weekday of full-time engineers** (full-time: merged something in at least 8 of the 13 weeks; sampled PRs scored with this rubric by `joules calibrate`):
 
@@ -56,7 +56,7 @@ So with AI the median engineer ships about 5.7× the Joules of the median engine
 
 **Reading it fairly:**
 - Count weeks, not single PRs: one PR's score is an estimate.
-- After 14 days a score settles: a reverted PR counts 0, and each fix merged in those 14 days that names it (`#123`) takes a quarter off (never below a quarter, nor 1 J). A team whose PRs keep needing fixes reads lower than its raw total.
+- After 14 days a score settles: a reverted PR counts 0, and each fix merged in those 14 days that names it (`#123`) takes a quarter off (never below a quarter of the score, nor below 1 J). A team whose PRs keep needing fixes reads lower than its raw total.
 - Work on a long-lived branch with no PR yet counts too: score each person's week of commits there as one change with the rubric (`joules stats` does this), so someone building a v2 doesn't read as idle.
 - Bots and release PRs (staging into master) are left out: the PRs they carry are scored on their own.
 - Someone who also works in repos you didn't include reads low; so does anyone whose PRs wait days for review, since a PR counts on the day it merges.
