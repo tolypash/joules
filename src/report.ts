@@ -2,7 +2,7 @@ import { readStamp, settledNote } from "./block.ts";
 import { branchContext, branchWork } from "./branches.ts";
 import { type Entry, loadCache, saveEntry } from "./cache.ts";
 import { isBot, isRelease, mergedSince, type Pull, type PullContext, pullContext } from "./github.ts";
-import { KINDS, REACH, rate, type Score } from "./score.ts";
+import { KINDS, REACH, rate } from "./score.ts";
 import { DAY, finalJoules, isSettled, SETTLE_DAYS, type Settlement, settlementOf } from "./settle.ts";
 
 export type Options = { repos: string[]; days: number; cache: string; model: string; concurrency: number; compare: boolean };
@@ -17,7 +17,7 @@ export async function pool<T>(items: T[], size: number, work: (item: T) => Promi
   await Promise.all(Array.from({ length: size }, worker));
 }
 
-const entryOf = (repo: string, p: Pull, score: Score): Entry => ({ repo, number: p.number, title: p.title, author: p.user.login, url: p.html_url, merged_at: p.merged_at!, score });
+const entryOf = (repo: string, p: Pull): Omit<Entry, "score"> => ({ repo, number: p.number, title: p.title, author: p.user.login, url: p.html_url, merged_at: p.merged_at! });
 
 /**
  * Every human PR (releases left out) merged in the window (twice the window with `compare`), plus each
@@ -35,11 +35,12 @@ export async function collect(o: Options): Promise<Scored[]> {
     byRepo.set(repo, pulls);
     for (const p of pulls) {
       const stamp = readStamp(p.body);
-      if (!cache.has(p.html_url) && stamp) cache.set(p.html_url, entryOf(repo, p, stamp));
-      if (!cache.has(p.html_url)) missing.push({ entry: entryOf(repo, p, undefined as never), context: () => pullContext(repo, p) });
+      if (!cache.has(p.html_url) && stamp) cache.set(p.html_url, { ...entryOf(repo, p), score: stamp });
+      if (!cache.has(p.html_url)) missing.push({ entry: entryOf(repo, p), context: () => pullContext(repo, p) });
     }
-    for (const w of await branchWork(repo, since)) {
-      const item = { entry: { repo, number: 0, title: w.title, author: w.author, url: w.url, merged_at: w.at, branches: w.branches }, context: () => branchContext(repo, w) };
+    const merged = new Set(pulls.map((p) => p.merge_commit_sha ?? ""));
+    for (const w of await branchWork(repo, since, merged)) {
+      const item = { entry: { repo, number: 0, title: w.title, author: w.author, url: w.url, merged_at: w.merged_at }, context: () => branchContext(repo, w) };
       work.push(item);
       if (!cache.has(w.url)) missing.push(item);
     }
@@ -93,7 +94,7 @@ export function leaderboard(scored: Scored[], days: number, compare: boolean, no
     if (age < 7 * DAY) row.week += s.joules;
     if (age < days * DAY) {
       row.total += s.joules;
-      if (!s.branches) row.prs++;
+      if (s.number) row.prs++;
       row.top.push(s);
     } else if (row.previous !== undefined && age < 2 * days * DAY) row.previous += s.joules;
   }

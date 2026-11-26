@@ -1,5 +1,6 @@
 import { loadCache, saveEntry } from "./cache.ts";
-import { gh, isRelease, type Pull, pullContext } from "./github.ts";
+import { branchContext, type Commit, weeksOf } from "./branches.ts";
+import { gh, isBot, isRelease, isReleaseTitle, pages, type Pull, type PullContext, pullContext } from "./github.ts";
 import { pool } from "./report.ts";
 import { rate } from "./score.ts";
 import { DAY } from "./settle.ts";
@@ -9,9 +10,10 @@ import { DAY } from "./settle.ts";
  * window, for everyone who merged something in most of its weeks, from a sample of their PRs scored
  * with the same rubric as today. The median of them is the BASELINE that efficiency is measured against.
  */
-export type Engineer = { repo: string; author: string; prs: number; sampled: number; perPr: number; perWeekday: number };
+/** `prs`: the units counted, PRs or weeks of commits. */
+export type Engineer = { repos: string[]; author: string; prs: number; sampled: number; perPr: number; perWeekday: number };
 
-type Found = { number: number; title: string; user: { login: string; type: string }; pull_request: { merged_at: string } };
+type Found = { number: number; title: string; html_url: string; user: { login: string; type: string }; pull_request: { merged_at: string } };
 
 export function weekdaysBetween(from: Date, to: Date): number {
   let count = 0;
@@ -37,48 +39,76 @@ async function mergedBetween(repo: string, from: Date, to: Date): Promise<Found[
   return out;
 }
 
-export async function calibrate(o: { repos: string[]; from: Date; to: Date; sample: number; minWeeks: number; cache: string; model: string; concurrency: number }): Promise<Engineer[]> {
+type Unit = { repo: string; author: string; at: string; url: string; title: string; context: () => Promise<PullContext> };
+
+async function prUnits(repo: string, from: Date, to: Date): Promise<Unit[]> {
+  const out: Unit[] = [];
+  for (const p of await mergedBetween(repo, from, to)) {
+    if (isBot(p) || isReleaseTitle(p.title)) continue;
+    const context = async () => {
+      const pr = await gh<Pull>(`/repos/${repo}/pulls/${p.number}`);
+      if (isRelease(pr)) throw new Error("a release PR");
+      return pullContext(repo, pr);
+    };
+    out.push({ repo, author: p.user.login, at: p.pull_request.merged_at, url: p.html_url, title: p.title, context });
+  }
+  return out;
+}
+
+/** For teams that commit straight to their main branches: each person's week of commits is one unit, like branch work today. */
+async function commitUnits(repo: string, from: Date, to: Date): Promise<Unit[]> {
+  const base = (await gh<{ default_branch: string }>(`/repos/${repo}`)).default_branch;
+  const names = new Set((await pages<{ name: string }>(`/repos/${repo}/branches`)).map((b) => b.name));
+  const commits = new Map<string, Commit>();
+  for (const branch of [base, "master", "main"].filter((b, i, all) => names.has(b) && all.indexOf(b) === i)) {
+    for (const c of await pages<Commit>(`/repos/${repo}/commits?sha=${branch}&since=${from.toISOString()}&until=${to.toISOString()}`)) {
+      if (c.parents.length === 1 && c.author && c.author.type !== "Bot" && !c.author.login.endsWith("[bot]")) commits.set(c.sha, c);
+    }
+  }
+  const out: Unit[] = [];
+  for (const w of weeksOf(repo, [...commits.values()])) out.push({ repo, author: w.author, at: w.merged_at, url: w.url, title: w.title, context: () => branchContext(repo, w) });
+  return out;
+}
+
+export async function calibrate(o: { repos: string[]; from: Date; to: Date; sample: number; minWeeks: number; commits: boolean; cache: string; model: string; concurrency: number }): Promise<Engineer[]> {
   const cache = loadCache(o.cache);
   const weeks = Math.round((o.to.getTime() - o.from.getTime()) / (7 * DAY));
   const weekdays = weekdaysBetween(o.from, o.to);
-  const picked: { repo: string; author: string; prs: Found[]; sample: Found[] }[] = [];
+  // By login across all repos, as stats does, so someone split over two repos counts once and whole.
+  const by = new Map<string, Unit[]>();
   for (const repo of o.repos) {
-    const by = new Map<string, Found[]>();
-    for (const p of await mergedBetween(repo, o.from, o.to)) {
-      if (p.user.type === "Bot" || p.user.login.endsWith("[bot]") || /^release(:|\s+v?\d)/i.test(p.title)) continue;
-      const list = by.get(p.user.login) ?? [];
-      list.push(p);
-      by.set(p.user.login, list);
-    }
-    for (const [author, prs] of by) {
-      const activeWeeks = new Set(prs.map((p) => Math.floor((new Date(p.pull_request.merged_at).getTime() - o.from.getTime()) / (7 * DAY)))).size;
-      if (activeWeeks < o.minWeeks) continue;
-      // Evenly spaced, so the sample is the same every run and spans the whole window.
-      const sorted = [...prs].sort((a, b) => a.pull_request.merged_at.localeCompare(b.pull_request.merged_at));
-      const step = Math.max(1, sorted.length / o.sample);
-      const sample = Array.from({ length: Math.min(o.sample, sorted.length) }, (_, i) => sorted[Math.floor(i * step)]!);
-      picked.push({ repo, author, prs, sample });
+    for (const u of o.commits ? await commitUnits(repo, o.from, o.to) : await prUnits(repo, o.from, o.to)) {
+      const list = by.get(u.author) ?? [];
+      list.push(u);
+      by.set(u.author, list);
     }
   }
-  const todo = picked.flatMap(({ repo, sample }) => sample.map((p) => ({ repo, p }))).filter(({ repo, p }) => !cache.has(`https://github.com/${repo}/pull/${p.number}`));
-  console.error(`${picked.length} full-time engineers (merged in ${o.minWeeks}+ of ${weeks} weeks), scoring ${todo.length} sampled PRs`);
-  await pool(todo, o.concurrency, async ({ repo, p }) => {
+  const picked: { author: string; units: Unit[]; sample: Unit[] }[] = [];
+  for (const [author, units] of by) {
+    const activeWeeks = new Set(units.map((u) => Math.floor((new Date(u.at).getTime() - o.from.getTime()) / (7 * DAY)))).size;
+    if (activeWeeks < o.minWeeks) continue;
+    // Evenly spaced, so the sample is the same every run and spans the whole window.
+    const sorted = [...units].sort((a, b) => a.at.localeCompare(b.at));
+    const step = Math.max(1, sorted.length / o.sample);
+    picked.push({ author, units, sample: Array.from({ length: Math.min(o.sample, sorted.length) }, (_, i) => sorted[Math.floor(i * step)]!) });
+  }
+  const todo = picked.flatMap(({ sample }) => sample).filter((u) => !cache.has(u.url));
+  console.error(`${picked.length} full-time engineers (active in ${o.minWeeks}+ of ${weeks} weeks), scoring ${todo.length} sampled ${o.commits ? "weeks of commits" : "PRs"}`);
+  await pool(todo, o.concurrency, async (u) => {
     try {
-      const pr = await gh<Pull>(`/repos/${repo}/pulls/${p.number}`);
-      if (isRelease(pr)) return;
-      const e = { repo, number: p.number, title: p.title, author: p.user.login, url: pr.html_url, merged_at: p.pull_request.merged_at, score: await rate(await pullContext(repo, pr), o.model) };
+      const e = { repo: u.repo, number: 0, title: u.title, author: u.author, url: u.url, merged_at: u.at, score: await rate(await u.context(), o.model) };
       cache.set(e.url, e);
       saveEntry(o.cache, e);
     } catch (err) {
-      console.error(`${repo}#${p.number}: ${(err as Error).message}`);
+      console.error(`${u.url}: ${(err as Error).message}`);
     }
   });
   const out: Engineer[] = [];
-  for (const { repo, author, prs, sample } of picked) {
-    const scored = sample.map((p) => cache.get(`https://github.com/${repo}/pull/${p.number}`)).filter((e) => e !== undefined);
+  for (const { author, units, sample } of picked) {
+    const scored = sample.map((u) => cache.get(u.url)).filter((e) => e !== undefined);
     if (!scored.length) continue;
     const perPr = scored.reduce((a, e) => a + e.score.joules, 0) / scored.length;
-    out.push({ repo, author, prs: prs.length, sampled: scored.length, perPr: Math.round(perPr * 10) / 10, perWeekday: Math.round(((perPr * prs.length) / weekdays) * 10) / 10 });
+    out.push({ repos: [...new Set(units.map((u) => u.repo))], author, prs: units.length, sampled: scored.length, perPr: Math.round(perPr * 10) / 10, perWeekday: Math.round(((perPr * units.length) / weekdays) * 10) / 10 });
   }
   return out.sort((a, b) => b.perWeekday - a.perWeekday);
 }

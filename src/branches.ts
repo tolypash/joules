@@ -1,4 +1,4 @@
-import { filesAndDiff, gh, isIntegrationBranch, type PullContext, type PullFile } from "./github.ts";
+import { filesAndDiff, gh, isIntegrationBranch, pages, type PullContext, type PullFile } from "./github.ts";
 import { DAY } from "./settle.ts";
 
 /**
@@ -6,62 +6,57 @@ import { DAY } from "./settle.ts";
  * an upstream branch), one unit per person per week. A commit already on the default branch, in a merged
  * PR, or a merge commit is left out, so nothing counts twice.
  */
-export type BranchWork = { url: string; title: string; author: string; at: string; shas: string[]; branches: string[] };
+export type BranchWork = { url: string; title: string; author: string; merged_at: string; shas: string[] };
 
-type Commit = { sha: string; parents: unknown[]; author: { login: string; type: string } | null; commit: { message: string; author: { date: string } } };
+export type Commit = { sha: string; parents: unknown[]; author: { login: string; type: string } | null; commit: { author: { date: string } } };
 
-export async function branchWork(repo: string, since: Date): Promise<BranchWork[]> {
+/** `merged`: the merge commits of PRs already counted, so a PR squash-merged into a branch isn't counted again. */
+export async function branchWork(repo: string, since: Date, merged: Set<string>): Promise<BranchWork[]> {
   const base = (await gh<{ default_branch: string }>(`/repos/${repo}`)).default_branch;
-  const withPr = new Set<string>();
-  for (let page = 1; ; page++) {
-    const batch = await gh<{ head: { ref: string } }[]>(`/repos/${repo}/pulls?state=all&per_page=100&page=${page}`);
-    for (const p of batch) withPr.add(p.head.ref);
-    if (batch.length < 100) break;
-  }
-  const branches: string[] = [];
-  for (let page = 1; ; page++) {
-    const batch = await gh<{ name: string }[]>(`/repos/${repo}/branches?per_page=100&page=${page}`);
-    for (const b of batch) if (b.name !== base && !withPr.has(b.name) && !isIntegrationBranch(b.name)) branches.push(b.name);
-    if (batch.length < 100) break;
-  }
+  const withPr = new Set((await pages<{ head: { ref: string } }>(`/repos/${repo}/pulls?state=all`)).map((p) => p.head.ref));
+  const branches = (await pages<{ name: string }>(`/repos/${repo}/branches`)).map((b) => b.name).filter((b) => b !== base && !withPr.has(b) && !isIntegrationBranch(b));
   const found = new Map<string, Commit & { on: Set<string> }>();
   for (const branch of branches) {
-    for (let page = 1; ; page++) {
-      const ahead = await gh<{ commits: Commit[] }>(`/repos/${repo}/compare/${encodeURIComponent(base)}...${encodeURIComponent(branch)}?per_page=100&page=${page}`);
-      for (const c of ahead.commits) {
-        if (c.parents.length !== 1 || new Date(c.commit.author.date) < since || !c.author || c.author.type === "Bot") continue;
-        const seen = found.get(c.sha) ?? { ...c, on: new Set<string>() };
-        seen.on.add(branch);
-        found.set(c.sha, seen);
-      }
-      if (ahead.commits.length < 100) break;
+    const ahead = await pages<Commit, { commits: Commit[] }>(`/repos/${repo}/compare/${encodeURIComponent(base)}...${encodeURIComponent(branch)}`, (r) => r.commits);
+    for (const c of ahead) {
+      if (c.parents.length !== 1 || merged.has(c.sha) || new Date(c.commit.author.date) < since || !c.author || c.author.type === "Bot") continue;
+      const seen = found.get(c.sha) ?? { ...c, on: new Set<string>() };
+      seen.on.add(branch);
+      found.set(c.sha, seen);
     }
   }
-  const byWeek = new Map<string, (Commit & { on: Set<string> })[]>();
+  const unmerged: (Commit & { on: Set<string> })[] = [];
   for (const c of found.values()) {
     // In a merged PR it was scored there; an open or closed PR (a branch built on this one) counts it nowhere.
-    if ((await gh<{ merged_at: string | null }[]>(`/repos/${repo}/commits/${c.sha}/pulls`)).some((p) => p.merged_at)) continue;
-    const who = c.author!.login;
+    if (!(await gh<{ merged_at: string | null }[]>(`/repos/${repo}/commits/${c.sha}/pulls`)).some((p) => p.merged_at)) unmerged.push(c);
+  }
+  return weeksOf(repo, unmerged);
+}
+
+/** One unit per person per week of commits. With `on` (the branches they sit on) it reads as unmerged work. */
+export function weeksOf(repo: string, commits: (Commit & { on?: Set<string> })[]): BranchWork[] {
+  const byWeek = new Map<string, (Commit & { on?: Set<string> })[]>();
+  for (const c of commits) {
     const day = new Date(c.commit.author.date);
     const monday = new Date(day.getTime() - ((day.getUTCDay() + 6) % 7) * DAY).toISOString().slice(0, 10);
-    const key = `${who} ${monday}`;
+    const key = `${c.author!.login} ${monday}`;
     const list = byWeek.get(key) ?? [];
     list.push(c);
     byWeek.set(key, list);
   }
   const out: BranchWork[] = [];
-  for (const [key, commits] of byWeek) {
+  for (const [key, week] of byWeek) {
     const [author, monday] = key.split(" ") as [string, string];
-    commits.sort((a, b) => a.commit.author.date.localeCompare(b.commit.author.date));
-    const last = commits.at(-1)!;
-    const on = [...new Set(commits.flatMap((c) => [...c.on]))];
+    week.sort((a, b) => a.commit.author.date.localeCompare(b.commit.author.date));
+    const on = [...new Set(week.flatMap((c) => [...(c.on ?? [])]))];
+    const n = `${week.length} commit${week.length > 1 ? "s" : ""}`;
     out.push({
-      url: `https://github.com/${repo}/commit/${last.sha}#${author}`,
-      title: `Unmerged work on ${on.join(", ")}: ${commits.length} commit${commits.length > 1 ? "s" : ""}, week of ${monday}`,
+      // Person, week and size: a rebase keeps the key, a new commit or one merged away rescores the week.
+      url: `https://github.com/${repo}/commits?author=${author}&week=${monday}&n=${week.length}`,
+      title: on.length ? `Unmerged work on ${on.join(", ")}: ${n}, week of ${monday}` : `Work in the week of ${monday}: ${n}`,
       author,
-      at: last.commit.author.date,
-      shas: commits.map((c) => c.sha),
-      branches: on,
+      merged_at: week.at(-1)!.commit.author.date,
+      shas: week.map((c) => c.sha),
     });
   }
   return out;
@@ -79,6 +74,6 @@ export async function branchContext(repo: string, w: BranchWork): Promise<PullCo
       files.set(f.filename, was ? { ...was, additions: was.additions + f.additions, deletions: was.deletions + f.deletions, patch: `${was.patch ?? ""}\n${f.patch ?? ""}` } : f);
     }
   }
-  const body = `A week of commits on a branch with no PR yet. Score the work in it the same way as a PR.\n\nCommits:\n${messages.join("\n")}`;
+  const body = `A week of one person's commits, not a PR. Score the work in it the same way as a PR.\n\nCommits:\n${messages.join("\n")}`;
   return { repo, number: 0, title: w.title, body, author: w.author, tickets: [], ...filesAndDiff([...files.values()]) };
 }

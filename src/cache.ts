@@ -1,8 +1,8 @@
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import type { Score } from "./score.ts";
 
-/** One scored PR (or a week of branch work, with `branches`), kept by its URL so nothing is scored twice. */
-export type Entry = { repo: string; number: number; title: string; author: string; url: string; merged_at: string; score: Score; branches?: string[] };
+/** One scored PR (or a week of branch work, number 0), kept by its URL so nothing is scored twice. */
+export type Entry = { repo: string; number: number; title: string; author: string; url: string; merged_at: string; score: Score };
 
 export function loadCache(path: string): Map<string, Entry> {
   const out = new Map<string, Entry>();

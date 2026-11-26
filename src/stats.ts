@@ -28,7 +28,7 @@ export type Stats = {
  * Joules per weekday of the median full-time engineer before AI (Q4 2024, before Claude 3.7 and agentic
  * coding), measured by `joules calibrate` over our repos and public product repos. 100% is that engineer.
  */
-export const BASELINE = 8.5;
+export const BASELINE = 8;
 
 /** Red up to 100% (no gain on pre-AI), yellow at 300%, green from 500%: heat, not a verdict. */
 const heat = (pct: number) => `hsl(${Math.round(Math.min(120, Math.max(0, ((pct - 100) / 400) * 120)))}, 85%, 78%)`;
@@ -41,7 +41,7 @@ const median = (xs: number[]) => {
 };
 
 /** `days` is a whole number of weeks (cli.ts rounds it), so the bars add up to the totals. */
-export function statsOf(scored: Scored[], days: number, names: Record<string, string>, now = Date.now()): Stats[] {
+export function statsOf(scored: Scored[], days: number, names: Record<string, string>, now = Date.now(), baseline = BASELINE): Stats[] {
   const weeks = Math.round(days / 7);
   const by = new Map<string, Scored[]>();
   for (const s of scored) {
@@ -67,7 +67,7 @@ export function statsOf(scored: Scored[], days: number, names: Record<string, st
       }
     }
     const joules = mine.reduce((a, s) => a + s.joules, 0);
-    const prs = mine.filter((s) => !s.branches);
+    const prs = mine.filter((s) => s.number);
     out.push({
       author,
       name: names[author] ?? author,
@@ -78,7 +78,7 @@ export function statsOf(scored: Scored[], days: number, names: Record<string, st
       typicalPr: median(prs.map((s) => s.joules)),
       rework: { fixed, settled },
       weekly,
-      efficiency: Math.round((joules / workdays(days, new Date(now)) / BASELINE) * 100),
+      efficiency: Math.round((joules / workdays(days, new Date(now)) / baseline) * 100),
       unmerged: joules - prs.reduce((a, s) => a + s.joules, 0),
     });
   }
@@ -98,7 +98,7 @@ function weeklyBars(weekly: number[], max: number): string {
   return `<svg width="${weekly.length * (w + 2)}" height="${h + 1}"><line x1="0" x2="${weekly.length * (w + 2)}" y1="${h + 0.5}" y2="${h + 0.5}" class="base"/>${bars}</svg>`;
 }
 
-export function statsHtml(rows: Stats[], o: { title: string; days: number; repos: string[]; note?: string }): string {
+export function statsHtml(rows: Stats[], o: { title: string; days: number; repos: string[]; note?: string; baseline: number }): string {
   const max = Math.max(1, ...rows.map((r) => r.joules));
   const maxWeek = Math.max(1, ...rows.flatMap((r) => r.weekly));
   const date = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
@@ -135,7 +135,7 @@ ${o.note ? `<div class="note">${esc(o.note)}</div>` : ""}
 <div class="how">
 <div><b>Joules</b> is the value of the work (merged PRs, plus commits on branches with no PR): how long a senior engineer would need without AI × who it reaches (customers 3, the team 2, internal systems 1.5, only developers 1) × what it is (feature, fix or speed-up 1, refactor 0.7, tests 0.6, docs or chores 0.4, dependency bumps 0.3). Claude scores each PR; everything on this page is counted by plain code. A small fix is about 3 J, a solid feature 30 to 100 J.</div>
 <div><b>Typical day</b> is the middle value over the days someone shipped anything, so one huge day doesn't skew it. <b>Typical PR</b> is the same for single PRs.</div>
-<div><b>Efficiency</b> is Joules per weekday against a typical full-time engineer before AI (${BASELINE} J a day: the median of 38 full-time engineers on Twenty, Novu, Formbricks, Documenso and our own repos, work merged in Q4 2024, before Claude 3.7 and agentic coding). 100% is that engineer; 500% ships five times as much. Red is no gain on that, yellow 300%, green 500% and up. Part-timers and people working in other repos read low.</div>
+<div><b>Efficiency</b> is Joules per weekday against a typical full-time engineer before AI: ${o.baseline} J a day, measured with <code>joules calibrate</code> on work from before Claude 3.7 and agentic coding${o.baseline === BASELINE ? " (the median of 39 full-time engineers on Twenty, Novu, Formbricks, Documenso and our own repos, Q4 2024)" : " (this team's own median, July to December 2024)"}. 100% is that engineer; 500% ships five times as much. Red is no gain on that, yellow 300%, green 500% and up. Part-timers and people working in other repos read low.</div>
 <div><b>Needed a fix after</b>: PRs merged ${SETTLE_DAYS}+ days ago that were reverted or fixed again by a later PR pointing back at them. Lower is better; it only sees fixes that link the PR.</div>
 </div></body></html>`;
 }

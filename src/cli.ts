@@ -7,7 +7,7 @@ import { collect, html, leaderboard, markdown, pool } from "./report.ts";
 import { rate } from "./score.ts";
 import { settleRepo } from "./settle.ts";
 import { calibrate } from "./calibrate.ts";
-import { statsHtml, statsOf } from "./stats.ts";
+import { BASELINE, statsHtml, statsOf } from "./stats.ts";
 import { commentOnTickets } from "./tickets.ts";
 
 const HELP = `joules: score the value each pull request ships
@@ -15,8 +15,8 @@ const HELP = `joules: score the value each pull request ships
   joules score <owner/repo#123> [--write]      score one PR (--write puts the block in its description and posts on its tickets)
   joules report --repos a/b,c/d [--days 30]    leaderboard per engineer (--html out.html, --compare, --compact)
   joules backfill --repos a/b,c/d --days 90    score past PRs into the cache, nothing written to GitHub
-  joules stats --repos a/b,c/d [--days 30]     per engineer: weekly Joules, typical day, rework (--html out.html, --title, --names login=Name,…, --note, --people a,b)
-  joules calibrate --repos a/b,c/d             the pre-AI baseline: Joules per weekday of full-time engineers (--from 2024-10-01 --to 2024-12-31 --sample 12 --min-weeks 8)
+  joules stats --repos a/b,c/d [--days 30]     per engineer: weekly Joules, typical day, rework (--html out.html, --title, --names login=Name,…, --note, --people a,b, --baseline J from calibrate)
+  joules calibrate --repos a/b,c/d             the pre-AI baseline: Joules per weekday of full-time engineers (--from 2024-10-01 --to 2024-12-31 --sample 12 --min-weeks 8; --commits for teams that commit without PRs)
   joules settle <owner/repo> [--write]         settle PRs merged 14+ days ago (reverts, follow-up fixes)
   joules action                                in GitHub Actions: scores on open and merge, settles on a schedule
 
@@ -40,10 +40,12 @@ const { values, positionals } = parseArgs({
     names: { type: "string", default: "" },
     note: { type: "string" },
     people: { type: "string", default: "" },
+    baseline: { type: "string" },
     from: { type: "string", default: "2024-10-01" },
     to: { type: "string", default: "2024-12-31" },
     sample: { type: "string", default: "12" },
     "min-weeks": { type: "string", default: "8" },
+    commits: { type: "boolean", default: false },
     help: { type: "boolean", short: "h", default: false },
   },
 });
@@ -110,12 +112,13 @@ else if (command === "backfill") {
     names[login] = (await gh<{ name: string | null }>(`/users/${login}`)).name ?? login;
   });
   const people = new Set(values.people.split(",").filter(Boolean));
-  const rows = statsOf(people.size ? scored.filter((s) => people.has(s.author)) : scored, days, names);
+  const baseline = values.baseline ? Number(values.baseline) : BASELINE;
+  const rows = statsOf(people.size ? scored.filter((s) => people.has(s.author)) : scored, days, names, Date.now(), baseline);
   console.log(JSON.stringify(rows, null, 1));
-  if (values.html) writeFileSync(values.html, statsHtml(rows, { title: values.title, days, repos, note: values.note }));
+  if (values.html) writeFileSync(values.html, statsHtml(rows, { title: values.title, days, repos, note: values.note, baseline }));
 } else if (command === "calibrate") {
-  const rows = await calibrate({ ...options, from: new Date(`${values.from}T00:00:00Z`), to: new Date(`${values.to}T23:59:59Z`), sample: Number(values.sample), minWeeks: Number(values["min-weeks"]) });
-  for (const r of rows) console.log(`${r.perWeekday} J/weekday  ${r.author} (${r.repo}): ${r.prs} PRs, ${r.perPr} J per PR from ${r.sampled}`);
+  const rows = await calibrate({ ...options, from: new Date(`${values.from}T00:00:00Z`), to: new Date(`${values.to}T23:59:59Z`), sample: Number(values.sample), minWeeks: Number(values["min-weeks"]), commits: values.commits });
+  for (const r of rows) console.log(`${r.perWeekday} J/weekday  ${r.author} (${r.repos.join(", ")}): ${r.prs} PRs, ${r.perPr} J per PR from ${r.sampled}`);
   const sorted = rows.map((r) => r.perWeekday).sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   const median = sorted.length % 2 ? sorted[mid] : ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2;
