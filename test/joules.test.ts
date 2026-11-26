@@ -140,7 +140,9 @@ test("the levels are the measured percentiles", () => {
   expect(percentile(perWeekday("ai-era-2026.tsv"), 0.9)).toBe(GREAT);
   // The share card carries its own copy of the with-AI levels.
   const card = readFileSync(new URL("../skill/joules/card.html", import.meta.url), "utf8");
-  expect(card).toContain(`const WITH_AI = { median: ${GOOD}, p75: ${percentile(perWeekday("ai-era-2026.tsv"), 0.75)}, top10: ${GREAT} };`);
+  const ai = (p: number) => percentile(perWeekday("ai-era-2026.tsv"), p);
+  expect(card).toContain(`const LADDER = [["Pre-AI", ${BASELINE}], ["Autocomplete", ${ai(0.25)}], ["Vibe coder", ${ai(0.4)}], ["Good", ${GOOD}], ["Cracked", ${GREAT}], ["God", ${ai(1)}]];`);
+  expect(card).toContain(`const MEDIAN = ${GOOD};`);
 });
 
 test("the share card counts one person's window: total, weekdays, PRs and a bar per day or week", () => {

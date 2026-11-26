@@ -27,7 +27,7 @@ Fourteen days after merge the score settles (`joules settle`, run daily): a reve
 
 - **On every PR:** the agent that opens it (Claude Code, Codex, Cursor) scores it and puts the score in the description. Your team already opens PRs with an agent, so scoring needs no server and no secret.
 - **On the ticket:** when the PR names a Linear or Jira issue (`ABC-123` in the branch, title or description) and the agent has a tracker tool, it posts the score there too.
-- **A card to share:** `joules card` turns your week, month or year into one image, measured against the median engineer shipping with AI. [See below](#share-your-joules).
+- **A card to share:** `joules card` turns your week, month or year into one image, measured against the median engineer shipping with AI, on a ladder from Pre-AI to God. [See below](#share-your-joules).
 - **Team view:** `joules report` gives a table per person for the last 24 hours, 7 days and the window you pick (`--days`), and with `--html` each person's highest and lowest-value PRs. Good for a weekly shout-out, a sprint review, or spotting someone who's stuck and needs a hand.
 
 ## Share your Joules
@@ -41,12 +41,12 @@ bunx joules-cli card --period year --repos acme/shop,acme/api    # or week; any 
 
 It writes `joules-card.png` (when the machine has Chrome) and opens `joules-card.html`: the card, a Copy image button, and Post on X with the text already written. Or ask your agent to "share my Joules": the skill makes the same card with no CLI.
 
-- **Measured against engineers who ship with AI too**, not against the days before it: your Joules per weekday as a multiple of today's median (45.6), with the top 25% (71.3) and the top 10% (117.4) marked on the scale.
+- **Measured against engineers who ship with AI too:** your Joules per weekday as a multiple of today's median, and a place on the ladder: Pre-AI (8 J a weekday), Autocomplete (12.2), Vibe coder (27.3), Good (45.6, today's median), Cracked (117.4, the top 10%) and God (205.2, the highest measured).
 - **Numbers only.** No repo names and no PR titles, so it is safe to post from private work.
 - **Week, month or year:** the last 7 days, 4 weeks or 52 weeks, each with its skyline of Joules per day or per week.
-- **The top 10% get their own colours:**
+- **Cracked and God get a filled badge:**
 
-![The card of someone in the top 10%: 38,420 Joules in 52 weeks, 3.2× the median](docs/card-cracked.jpg)
+![A Cracked card: 38,420 Joules in 52 weeks, 3.2× the median](docs/card-cracked.jpg)
 
 ## Set it up
 

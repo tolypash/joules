@@ -61,7 +61,7 @@ So with AI the median engineer ships about 5.7× the Joules of the median engine
 
 ## Share your Joules
 
-When someone asks to share their Joules (a card, a post, "my week in Joules"), make their card: one image with their total, their Joules per weekday, and where that sits against the median engineer shipping with AI, the top 25% and the top 10%. It carries numbers only, no repo names or PR titles, so it is safe to post from private work.
+When someone asks to share their Joules (a card, a post, "my week in Joules"), make their card: one image with their total, their Joules per weekday, and where that sits on the ladder from Pre-AI to God. It carries numbers only, no repo names or PR titles, so it is safe to post from private work.
 
 1. **Pick the window**, ending today: a week (7 days, 5 weekdays), a month (28 days, 20 weekdays; use this when they don't say) or a year (364 days, 260 weekdays).
 2. **Add up their Joules in it.** List their merged PRs with `gh search prs --author @me --merged --merged-at ">=<first day>" --limit 1000 --json url,closedAt,body` (add `--repo owner/repo` to keep to one repo). Each PR counts the `joules` in its block's JSON, or `final.joules` once it has settled. Score a PR with no block from its diff with the rubric; when there are too many, leave them out and tell the user how many.
@@ -80,7 +80,7 @@ When someone asks to share their Joules (a card, a post, "my week in Joules"), m
 
 5. Tell them their line, ready to post: `⚡ 1,612 Joules shipped · 4 weeks to 26 Nov 2026 · 80.6 J a weekday, 1.8× the median engineer with AI`.
 
-The comparison is always with engineers who ship with AI too (the median is 45.6 J a weekday, the top 25% 71.3, the top 10% 117.4), never with the days before it. With the Joules CLI (needs [Bun](https://bun.sh)) steps 2 to 4 are one command, which also scores PRs that have no block: `bunx joules-cli card --period month`.
+The headline multiple is always against the median engineer who ships with AI too. The ladder's rungs are measured Joules per weekday with names of our own: Pre-AI (8 J a weekday), Autocomplete (12.2), Vibe coder (27.3), Good (45.6, today's median), Cracked (117.4, the top 10%) and God (205.2, the highest measured). Autocomplete and Vibe coder are the 25th and 40th percentile of engineers shipping with AI. With the Joules CLI (needs [Bun](https://bun.sh)) steps 2 to 4 are one command, which also scores PRs that have no block: `bunx joules-cli card --period month`.
 
 ## Shipping well with AI
 
