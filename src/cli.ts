@@ -90,7 +90,9 @@ else if (command === "backfill") {
   console.log(markdown(rows, options.days));
   if (values.html) writeFileSync(values.html, html(rows, { days: options.days, repos, compact: values.compact, compare: values.compare }));
 } else if (command === "stats") {
-  const scored = await collect({ ...options, compare: false });
+  // Whole weeks, so the oldest bar is never a part-week that reads as a slump.
+  const days = Math.max(1, Math.round(options.days / 7)) * 7;
+  const scored = await collect({ ...options, days, compare: false });
   await markAi(scored, values.cache, options.concurrency);
   const names: Record<string, string> = {};
   for (const pair of values.names.split(",").filter(Boolean)) {
@@ -101,8 +103,6 @@ else if (command === "backfill") {
   await pool(unnamed, options.concurrency, async (login) => {
     names[login] = (await gh<{ name: string | null }>(`/users/${login}`)).name ?? login;
   });
-  // Whole weeks, so the oldest bar is never a part-week that reads as a slump.
-  const days = Math.max(1, Math.round(options.days / 7)) * 7;
   const rows = statsOf(scored, days, names);
   console.log(JSON.stringify(rows, null, 1));
   if (values.html) writeFileSync(values.html, statsHtml(rows, { title: values.title, days, repos, note: values.note }));
