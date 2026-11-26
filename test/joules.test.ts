@@ -94,7 +94,17 @@ test("stats count weeks, typical day and PR, and rework", () => {
     28,
     { ann: "Ann" },
     now,
+    8,
+    { ann: 0.5 },
   );
-  expect(row).toMatchObject({ name: "Ann", joules: 65, prs: 4, activeDays: 2, typicalDay: 33, typicalPr: 15, rework: { fixed: 1, settled: 2 }, efficiency: 41 });
+  expect(row).toMatchObject({ name: "Ann", joules: 65, prs: 4, activeDays: 2, typicalDay: 33, typicalPr: 15, rework: { fixed: 1, settled: 2 }, efficiency: 81, share: 0.5 });
   expect(row!.weekly).toEqual([0, 35, 0, 30]);
+});
+
+test("a PR that bundles an upgrade, a feature and a fix is scored part by part", () => {
+  const r = parseRating(
+    '{"parts":[{"what":"React 19 upgrade","kind":"deps","reach":"dev","expert_hours":40},{"what":"AI chat cards","kind":"feature","reach":"customers","expert_hours":12},{"what":"Totals fix","kind":"fix","reach":"customers","expert_hours":2}],"summary":"s","reason":"r"}',
+  );
+  expect(r).toMatchObject({ kind: "feature", reach: "customers", expert_hours: 54 });
+  expect(joulesOf(r)).toBe(54); // 40 × 1 × 0.3 + 12 × 3 + 2 × 3, where one kind for all would read 162
 });

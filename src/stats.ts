@@ -18,6 +18,8 @@ export type Stats = {
   /** Settled PRs (merged 14+ days ago) that were reverted or fixed again, out of all settled ones. */
   rework: { fixed: number; settled: number };
   weekly: number[];
+  /** Share of a full-time week they work here (1 unless told), so a part-timer is measured against their own hours. */
+  share: number;
   /** Joules per weekday against a typical engineer before AI (BASELINE), in %: 100 is that engineer. */
   efficiency: number;
   /** Joules from weeks of work on branches with no PR, already in `joules`. */
@@ -41,7 +43,7 @@ const median = (xs: number[]) => {
 };
 
 /** `days` is a whole number of weeks (cli.ts rounds it), so the bars add up to the totals. */
-export function statsOf(scored: Scored[], days: number, names: Record<string, string>, now = Date.now(), baseline = BASELINE): Stats[] {
+export function statsOf(scored: Scored[], days: number, names: Record<string, string>, now = Date.now(), baseline = BASELINE, shares: Record<string, number> = {}): Stats[] {
   const weeks = Math.round(days / 7);
   const by = new Map<string, Scored[]>();
   for (const s of scored) {
@@ -78,7 +80,8 @@ export function statsOf(scored: Scored[], days: number, names: Record<string, st
       typicalPr: median(prs.map((s) => s.joules)),
       rework: { fixed, settled },
       weekly,
-      efficiency: Math.round((joules / workdays(days, new Date(now)) / baseline) * 100),
+      efficiency: Math.round((joules / (workdays(days, new Date(now)) * (shares[author] ?? 1)) / baseline) * 100),
+      share: shares[author] ?? 1,
       unmerged: joules - prs.reduce((a, s) => a + s.joules, 0),
     });
   }
@@ -104,7 +107,7 @@ export function statsHtml(rows: Stats[], o: { title: string; days: number; repos
   const date = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
   let body = "";
   for (const r of rows) {
-    body += `<tr><td class="who">${esc(r.name)}</td>
+    body += `<tr><td class="who">${esc(r.name)}${r.share < 1 ? `<small>part-time, ${Math.round(r.share * 100)}% of a week</small>` : ""}</td>
 <td class="total"><b>${r.joules.toLocaleString("en-GB")}</b>${r.unmerged ? `<small>incl. ${r.unmerged.toLocaleString("en-GB")} unmerged</small>` : ""}<span class="bar"><i style="width:${Math.round((r.joules / max) * 100)}%"></i></span></td>
 <td>${r.prs}</td><td>${r.activeDays}</td><td>${r.typicalDay}</td><td>${r.typicalPr}</td>
 <td>${pct(r.rework.fixed, r.rework.settled)}<small>${r.rework.fixed} of ${r.rework.settled}</small></td>
@@ -125,11 +128,14 @@ td.total b { font-size: 17px } .bar { display: block; height: 6px; margin-top: 5
 td.weeks { text-align: left } svg rect { fill: #d97706 } svg .base { stroke: #ccc; stroke-width: 1 }
 .how { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 28px; margin-top: 24px; font-size: 12.5px; color: #444; line-height: 1.45 }
 .how b { color: #111 }
+.plain { font-size: 15px; line-height: 1.5; color: #222; background: #f7f7f5; border-radius: 8px; padding: 12px 16px; margin: -6px 0 22px }
+td.who small { display: block; color: #888; font-size: 11px; font-weight: 400 }
 td.pace { text-align: center; border-radius: 6px; border-bottom: 2px solid #fff } td.pace b { font-size: 17px }
 .note { background: #fff7ed; border-left: 3px solid #d97706; padding: 8px 12px; font-size: 13px; color: #333; margin: -8px 0 18px }
 </style></head><body>
 <h1><span>⚡</span> ${esc(o.title)}</h1>
 <div class="sub">Last ${o.days} days to ${date} · ${esc(o.repos.map((r) => r.split("/")[1]).join(", "))} · release PRs and bots left out</div>
+<div class="plain">Every piece of work an engineer finishes earns points, called <b>Joules</b>, for what it is worth: roughly how many hours a good engineer would have needed for it without AI, counted three times when customers feel it. <b>Efficiency</b> compares each person's points per working day with what ${o.baseline === BASELINE ? "a typical engineer delivered" : "this team delivered"} before AI tools: 100% is the same output as before, 300% is three times as much. Part-timers are measured against their own hours.</div>
 ${o.note ? `<div class="note">${esc(o.note)}</div>` : ""}
 <table><tr><th>Engineer</th><th>Joules<br>(value shipped)</th><th>PRs</th><th>Days<br>shipping</th><th>Typical<br>day (J)</th><th>Typical<br>PR (J)</th><th>Needed a<br>fix after</th><th>Efficiency</th><th style="text-align:left">Joules per week, oldest to newest</th></tr>${body}</table>
 <div class="how">

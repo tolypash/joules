@@ -17,7 +17,7 @@ const HELP = `joules: score the value each pull request ships
   joules score <owner/repo#123> [--write]      score one PR (--write puts the block in its description and posts on its tickets)
   joules report --repos a/b,c/d [--days 30]    leaderboard per engineer (--html out.html, --compare, --compact)
   joules backfill --repos a/b,c/d --days 90    score past PRs into the cache, nothing written to GitHub
-  joules stats --repos a/b,c/d [--days 30]     per engineer: weekly Joules, typical day, rework (--html out.html, --title, --names login=Name,…, --note, --people a,b, --baseline J from calibrate)
+  joules stats --repos a/b,c/d [--days 30]     per engineer: weekly Joules, typical day, rework (--html out.html, --title, --names login=Name,…, --note, --people a,b, --baseline J from calibrate, --part-time login=0.5)
   joules calibrate --repos a/b,c/d             the pre-AI baseline: Joules per weekday of full-time engineers (--from 2024-10-01 --to 2024-12-31 --sample 12 --min-weeks 8; --commits for teams that commit without PRs)
   joules settle <owner/repo> [--write]         settle PRs merged 14+ days ago (reverts, follow-up fixes)
   joules action                                in GitHub Actions: scores on open and merge, settles on a schedule
@@ -42,6 +42,7 @@ const { values, positionals } = parseArgs({
     names: { type: "string", default: "" },
     note: { type: "string" },
     people: { type: "string", default: "" },
+    "part-time": { type: "string", default: "" },
     baseline: { type: "string" },
     from: { type: "string", default: "2024-10-01" },
     to: { type: "string", default: "2024-12-31" },
@@ -118,7 +119,12 @@ else if (command === "backfill") {
   });
   const people = new Set(values.people.split(",").filter(Boolean));
   const baseline = values.baseline ? Number(values.baseline) : BASELINE;
-  const rows = statsOf(people.size ? scored.filter((s) => people.has(s.author)) : scored, days, names, Date.now(), baseline);
+  const shares: Record<string, number> = {};
+  for (const pair of values["part-time"].split(",").filter(Boolean)) {
+    const [login, share] = pair.split("=");
+    if (login && Number(share) > 0) shares[login] = Number(share);
+  }
+  const rows = statsOf(people.size ? scored.filter((s) => people.has(s.author)) : scored, days, names, Date.now(), baseline, shares);
   console.log(JSON.stringify(rows, null, 1));
   if (values.html) writeFileSync(values.html, statsHtml(rows, { title: values.title, days, repos, note: values.note, baseline }));
 } else if (command === "calibrate") {
