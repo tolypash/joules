@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Claude Code PreToolUse hook: before `gh pr create`, make sure the PR body carries a Joules block.
 # If it doesn't, the command is held (exit 2) and Claude is told to score the branch with the joules skill first.
+# Without python3 it lets the PR through: the GitHub Action scores it anyway.
+command -v python3 >/dev/null || exit 0
 python3 -c '
 import json, shlex, sys
 cmd = json.load(sys.stdin).get("tool_input", {}).get("command", "")
@@ -18,6 +20,6 @@ for i, a in enumerate(args):
                 sys.exit(0)
         except OSError:
             pass
-sys.stderr.write("Joules: this PR has no score yet. Use the joules skill to score the branch and add its block at the end of the PR body, then run gh pr create again.\n")
+sys.stderr.write("Joules: this PR has no score yet. Read .claude/skills/joules/SKILL.md (the joules skill), score the branch and add its block at the end of the PR body, then run gh pr create again.\n")
 sys.exit(2)
 '

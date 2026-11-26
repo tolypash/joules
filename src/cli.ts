@@ -7,11 +7,13 @@ import { collect, html, leaderboard, markdown, pool } from "./report.ts";
 import { rate } from "./score.ts";
 import { settleRepo } from "./settle.ts";
 import { calibrate } from "./calibrate.ts";
+import { init } from "./init.ts";
 import { BASELINE, statsHtml, statsOf } from "./stats.ts";
 import { commentOnTickets } from "./tickets.ts";
 
 const HELP = `joules: score the value each pull request ships
 
+  joules init [dir]                            put Joules in a repo: every agent there scores its PRs (skill, hook, notes, workflow)
   joules score <owner/repo#123> [--write]      score one PR (--write puts the block in its description and posts on its tickets)
   joules report --repos a/b,c/d [--days 30]    leaderboard per engineer (--html out.html, --compare, --compact)
   joules backfill --repos a/b,c/d --days 90    score past PRs into the cache, nothing written to GitHub
@@ -88,6 +90,9 @@ else if (command === "score") {
   const m = target?.match(/^([\w.-]+\/[\w.-]+)#(\d+)$/) ?? target?.match(/github\.com\/([\w.-]+\/[\w.-]+)\/pull\/(\d+)/);
   if (!m) throw new Error(`expected owner/repo#123, got ${target}`);
   await scorePull(m[1]!, await gh<Pull>(`/repos/${m[1]}/pulls/${m[2]}`), values.write);
+} else if (command === "init") {
+  const done = init(target ?? ".");
+  console.log(done.length ? `Joules is in ${target ?? "this repo"}: ${done.join(", ")}` : "Already set up.");
 } else if (command === "action") await action();
 else if (command === "settle") await settleRepo(target ?? process.env.GITHUB_REPOSITORY!, values.write);
 else if (command === "backfill") {
