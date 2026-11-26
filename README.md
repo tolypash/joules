@@ -40,7 +40,7 @@ Fourteen days after merge the score settles (`joules settle`, run daily): a reve
 | Before AI (39 engineers, Q4 2024) | 8 | 24.2 |
 | With AI (33 engineers, Aug to Oct 2026) | 45.6 | 117.4 |
 
-Efficiency is Joules per weekday against the pre-AI median: 100% is the same output as before AI, good today is 570%, cracked (the top 10%) 1,468%. The full table, how to read it fairly and the raw data are in [the skill](skill/joules/SKILL.md#whats-good-the-measured-numbers) and [data/](data). A team with its own pre-AI history can measure its own baseline with `joules calibrate` (`--commits` if it didn't use PRs then) and pass `--baseline`.
+Efficiency is Joules per weekday against the pre-AI median: 100% is the same output as before AI, good today is 570%, cracked (the top 10%) 1,468%. The full table, a team's own baseline and how to read it fairly are in [the skill](skill/joules/SKILL.md#whats-good-the-measured-numbers); the raw numbers in [data/](data).
 
 **The CLI.** Needs [Bun](https://bun.sh), the [Claude Code CLI](https://docs.claude.com/claude-code) signed in, and `gh` signed in (or `GITHUB_TOKEN`).
 
