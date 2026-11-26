@@ -60,7 +60,7 @@ bunx joules-cli settle acme/shop --write          # what the Action does daily: 
 bunx joules-cli stats --repos acme/shop --days 90 --html team.html   # per person: weekly Joules, typical day, rework, built with Claude
 ```
 
-`stats` is plain counting over the scores, no model: the same data gives the same numbers every time. Scores are kept in `joules-cache.jsonl` so nothing is scored twice. A report reads scores the Action already wrote in PRs, and scores the rest.
+`stats` counts over the same scores as `report` (scoring PRs not yet in the cache); the counting itself is plain code, so the same scores give the same numbers every time. Scores are kept in `joules-cache.jsonl` so nothing is scored twice. A report reads scores the Action already wrote in PRs, and scores the rest.
 
 ## Good to know
 

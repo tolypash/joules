@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { headline, readStamp, type Stamp, withStamp } from "./block.ts";
 import { gh, isRelease, type Pull, pullContext } from "./github.ts";
-import { collect, html, leaderboard, markdown } from "./report.ts";
+import { collect, html, leaderboard, markdown, pool } from "./report.ts";
 import { rate } from "./score.ts";
 import { settleRepo } from "./settle.ts";
 import { markAi, statsHtml, statsOf } from "./stats.ts";
@@ -14,7 +14,7 @@ const HELP = `joules: score the value each pull request ships
   joules score <owner/repo#123> [--write]      score one PR (--write puts the block in its description and posts on its tickets)
   joules report --repos a/b,c/d [--days 30]    leaderboard per engineer (--html out.html, --compare, --compact)
   joules backfill --repos a/b,c/d --days 90    score past PRs into the cache, nothing written to GitHub
-  joules stats --repos a/b,c/d [--days 90]     per engineer: weekly Joules, typical day, rework, AI share (--html out.html, --title, --names login=Name,…, --note)
+  joules stats --repos a/b,c/d [--days 30]     per engineer: weekly Joules, typical day, rework, AI share (--html out.html, --title, --names login=Name,…, --note)
   joules settle <owner/repo> [--write]         settle PRs merged 14+ days ago (reverts, follow-up fixes)
   joules action                                in GitHub Actions: scores on open and merge, settles on a schedule
 
@@ -93,11 +93,14 @@ else if (command === "backfill") {
   const scored = await collect({ ...options, compare: false });
   await markAi(scored, values.cache, options.concurrency);
   const names: Record<string, string> = {};
-  for (const login of new Set(scored.map((s) => s.author))) names[login] = (await gh<{ name: string | null }>(`/users/${login}`)).name ?? login;
   for (const pair of values.names.split(",").filter(Boolean)) {
     const [login, name] = pair.split("=");
     if (login && name) names[login] = name;
   }
+  const unnamed = [...new Set(scored.map((s) => s.author))].filter((login) => !names[login]);
+  await pool(unnamed, options.concurrency, async (login) => {
+    names[login] = (await gh<{ name: string | null }>(`/users/${login}`)).name ?? login;
+  });
   const rows = statsOf(scored, options.days, names);
   console.log(JSON.stringify(rows, null, 1));
   if (values.html) writeFileSync(values.html, statsHtml(rows, { title: values.title, days: options.days, repos, note: values.note }));

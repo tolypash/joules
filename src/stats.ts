@@ -1,6 +1,6 @@
 import { keyOf, saveEntry } from "./cache.ts";
 import { aiAssisted } from "./github.ts";
-import { pool, type Scored } from "./report.ts";
+import { esc, pool, type Scored } from "./report.ts";
 import { DAY, SETTLE_DAYS } from "./settle.ts";
 
 /**
@@ -49,11 +49,14 @@ export async function markAi(scored: Scored[], cache: string, concurrency: numbe
 }
 
 export function statsOf(scored: Scored[], days: number, names: Record<string, string>, now = Date.now()): Stats[] {
-  const weeks = Math.ceil(days / 7);
+  // Whole weeks only, so the oldest bar never shows a part-week as a slump.
+  const weeks = Math.floor(days / 7);
   const by = new Map<string, Scored[]>();
   for (const s of scored) {
     if (now - new Date(s.merged_at).getTime() >= days * DAY) continue;
-    by.set(s.author, [...(by.get(s.author) ?? []), s]);
+    const list = by.get(s.author) ?? [];
+    list.push(s);
+    by.set(s.author, list);
   }
   const out: Stats[] = [];
   for (const [author, mine] of by) {
@@ -65,7 +68,7 @@ export function statsOf(scored: Scored[], days: number, names: Record<string, st
       const day = s.merged_at.slice(0, 10);
       perDay.set(day, (perDay.get(day) ?? 0) + s.joules);
       const week = weeks - 1 - Math.floor((now - new Date(s.merged_at).getTime()) / (7 * DAY));
-      weekly[week]! += s.joules;
+      if (week >= 0) weekly[week]! += s.joules;
       if (s.settlement) {
         settled++;
         if (s.settlement.reverted || s.settlement.fixes.length) fixed++;
@@ -87,7 +90,6 @@ export function statsOf(scored: Scored[], days: number, names: Record<string, st
   return out.sort((a, b) => b.joules - a.joules);
 }
 
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 const pct = (n: number, of: number) => (of ? `${Math.round((n / of) * 100)}%` : "–");
 
 function weeklyBars(weekly: number[], max: number): string {
@@ -134,9 +136,9 @@ td.weeks { text-align: left } svg rect { fill: #d97706 } svg .base { stroke: #cc
 ${o.note ? `<div class="note">${esc(o.note)}</div>` : ""}
 <table><tr><th>Engineer</th><th>Joules<br>(value shipped)</th><th>PRs</th><th>Days<br>shipping</th><th>Typical<br>day (J)</th><th>Typical<br>PR (J)</th><th>Needed a<br>fix after</th><th>Built with<br>Claude</th><th style="text-align:left">Joules per week, oldest to newest</th></tr>${body}</table>
 <div class="how">
-<div><b>Joules</b> is the value of merged work: how long a senior engineer would need without AI × who it reaches (customers 3, team 2, system 1.5, developers 1) × what it is (feature or fix 1, refactor 0.7, chore 0.4). A small fix is about 3 J, a solid feature 30 to 100 J.</div>
+<div><b>Joules</b> is the value of merged work: how long a senior engineer would need without AI × who it reaches (customers 3, the team 2, internal systems 1.5, only developers 1) × what it is (feature, fix or speed-up 1, refactor 0.7, tests 0.6, docs or chores 0.4, dependency bumps 0.3). Claude scores each PR; everything on this page is counted by plain code. A small fix is about 3 J, a solid feature 30 to 100 J.</div>
 <div><b>Typical day</b> is the middle value over the days someone merged anything, so one huge day doesn't skew it. <b>Typical PR</b> is the same for single PRs.</div>
 <div><b>Needed a fix after</b>: PRs merged ${SETTLE_DAYS}+ days ago that were reverted or fixed again by a later PR pointing back at them. Lower is better; it only sees fixes that link the PR.</div>
-<div><b>Built with Claude</b>: PRs with a commit that credits Claude. Work done with AI that leaves no credit in the commits isn't counted. The scores come from Claude reading each PR; the counting is plain code.</div>
+<div><b>Built with Claude</b>: PRs with a commit that credits Claude. Work done with AI that leaves no credit in the commits isn't counted.</div>
 </div></body></html>`;
 }

@@ -1,5 +1,5 @@
 import { headline, readStamp, settledNote, type Stamp, withStamp } from "./block.ts";
-import { gh, mergedSince, type Pull, ticketsOf } from "./github.ts";
+import { gh, isBot, isRelease, mergedSince, type Pull, ticketsOf } from "./github.ts";
 import { commentOnTickets } from "./tickets.ts";
 
 export const DAY = 86_400_000;
@@ -36,7 +36,8 @@ export const isSettled = (mergedAt: string) => Date.now() - new Date(mergedAt).g
 
 /** Settles every scored PR in the repo merged 14 to 28 days ago that hasn't been settled yet. */
 export async function settleRepo(repo: string, write: boolean): Promise<void> {
-  const pulls = await mergedSince(repo, new Date(Date.now() - 2 * SETTLE_DAYS * DAY));
+  // The same PRs a report counts, so a release listing every PR it carries never reads as their fix.
+  const pulls = (await mergedSince(repo, new Date(Date.now() - 2 * SETTLE_DAYS * DAY))).filter((p) => !isBot(p) && !isRelease(p));
   for (const p of pulls) {
     const stamp = readStamp(p.body);
     if (!stamp || stamp.final || !isSettled(p.merged_at!)) continue;

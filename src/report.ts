@@ -102,7 +102,7 @@ export function markdown(rows: Row[], days: number): string {
 }
 
 const weights = (w: Record<string, number>) => Object.entries(w).map(([k, v]) => `${k} ${v}`).join(", ");
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+export const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
 function trend(r: Row): string {
   if (!r.previous) return r.total ? "new" : "–";
