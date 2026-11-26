@@ -1,8 +1,8 @@
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import type { Score } from "./score.ts";
 
-/** One scored PR, kept so a report or backfill never scores the same PR twice. `ai`: a commit credits Claude (stats.ts). */
-export type Entry = { repo: string; number: number; title: string; author: string; url: string; merged_at: string; score: Score; ai?: boolean };
+/** One scored PR, kept so a report or backfill never scores the same PR twice. */
+export type Entry = { repo: string; number: number; title: string; author: string; url: string; merged_at: string; score: Score };
 
 export const keyOf = (repo: string, number: number) => `${repo}#${number}`;
 

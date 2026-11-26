@@ -57,7 +57,7 @@ bunx joules-cli score acme/shop#123            # one PR
 bunx joules-cli backfill --repos acme/shop,acme/api --days 90
 bunx joules-cli report --repos acme/shop,acme/api --days 30 --compare --html team.html
 bunx joules-cli settle acme/shop --write          # what the Action does daily: reverts and follow-up fixes
-bunx joules-cli stats --repos acme/shop --days 90 --html team.html   # per person: weekly Joules, typical day, rework, built with Claude
+bunx joules-cli stats --repos acme/shop --days 90 --html team.html   # per person: weekly Joules, typical day, rework
 ```
 
 `stats` counts over the same scores as `report` (scoring PRs not yet in the cache); the counting itself is plain code, so the same scores give the same numbers every time. Scores are kept in `joules-cache.jsonl` so nothing is scored twice. A report reads scores the Action already wrote in PRs, and scores the rest.

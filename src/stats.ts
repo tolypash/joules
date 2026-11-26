@@ -1,11 +1,9 @@
-import { keyOf, saveEntry } from "./cache.ts";
-import { aiAssisted } from "./github.ts";
-import { esc, pool, type Scored } from "./report.ts";
+import { esc, type Scored } from "./report.ts";
 import { DAY, SETTLE_DAYS } from "./settle.ts";
 
 /**
  * Plain counting over scored PRs, no model involved: weekly Joules, the typical day, how often work
- * needed a follow-up fix, how much of it credits Claude. Every number here can be checked by hand.
+ * needed a follow-up fix. Every number here can be checked by hand.
  */
 export type Stats = {
   author: string;
@@ -19,8 +17,6 @@ export type Stats = {
   typicalPr: number;
   /** Settled PRs (merged 14+ days ago) that were reverted or fixed again, out of all settled ones. */
   rework: { fixed: number; settled: number };
-  /** PRs with a commit that credits Claude. */
-  ai: number;
   weekly: number[];
 };
 
@@ -30,23 +26,6 @@ const median = (xs: number[]) => {
   const mid = Math.floor(s.length / 2);
   return s.length % 2 ? s[mid]! : Math.round((s[mid - 1]! + s[mid]!) / 2);
 };
-
-/** Fills in which PRs credit Claude, from their commits, and keeps it in the cache. */
-export async function markAi(scored: Scored[], cache: string, concurrency: number): Promise<void> {
-  await pool(
-    scored.filter((s) => s.ai === undefined),
-    concurrency,
-    async (s) => {
-      try {
-        s.ai = await aiAssisted(s.repo, s.number);
-        const { joules: _, settlement: __, ...entry } = s;
-        saveEntry(cache, entry);
-      } catch (err) {
-        console.error(`${s.repo}#${s.number}: ${(err as Error).message}`);
-      }
-    },
-  );
-}
 
 /** `days` is a whole number of weeks (cli.ts rounds it), so the bars add up to the totals. */
 export function statsOf(scored: Scored[], days: number, names: Record<string, string>, now = Date.now()): Stats[] {
@@ -83,7 +62,6 @@ export function statsOf(scored: Scored[], days: number, names: Record<string, st
       typicalDay: median([...perDay.values()]),
       typicalPr: median(mine.map((s) => s.joules)),
       rework: { fixed, settled },
-      ai: mine.filter((s) => s.ai).length,
       weekly,
     });
   }
@@ -113,7 +91,7 @@ export function statsHtml(rows: Stats[], o: { title: string; days: number; repos
 <td class="total"><b>${r.joules.toLocaleString("en-GB")}</b><span class="bar"><i style="width:${Math.round((r.joules / max) * 100)}%"></i></span></td>
 <td>${r.prs}</td><td>${r.activeDays}</td><td>${r.typicalDay}</td><td>${r.typicalPr}</td>
 <td>${pct(r.rework.fixed, r.rework.settled)}<small>${r.rework.fixed} of ${r.rework.settled}</small></td>
-<td>${pct(r.ai, r.prs)}</td><td class="weeks">${weeklyBars(r.weekly, maxWeek)}</td></tr>`;
+<td class="weeks">${weeklyBars(r.weekly, maxWeek)}</td></tr>`;
   }
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(o.title)}</title><style>
 body { font-family: -apple-system, "Helvetica Neue", sans-serif; color: #111; margin: 0; padding: 32px 36px; background: #fff; width: 1128px; }
@@ -134,11 +112,10 @@ td.weeks { text-align: left } svg rect { fill: #d97706 } svg .base { stroke: #cc
 <h1><span>⚡</span> ${esc(o.title)}</h1>
 <div class="sub">Last ${o.days} days to ${date} · ${esc(o.repos.map((r) => r.split("/")[1]).join(", "))} · release PRs and bots left out</div>
 ${o.note ? `<div class="note">${esc(o.note)}</div>` : ""}
-<table><tr><th>Engineer</th><th>Joules<br>(value shipped)</th><th>PRs</th><th>Days<br>shipping</th><th>Typical<br>day (J)</th><th>Typical<br>PR (J)</th><th>Needed a<br>fix after</th><th>Built with<br>Claude</th><th style="text-align:left">Joules per week, oldest to newest</th></tr>${body}</table>
+<table><tr><th>Engineer</th><th>Joules<br>(value shipped)</th><th>PRs</th><th>Days<br>shipping</th><th>Typical<br>day (J)</th><th>Typical<br>PR (J)</th><th>Needed a<br>fix after</th><th style="text-align:left">Joules per week, oldest to newest</th></tr>${body}</table>
 <div class="how">
 <div><b>Joules</b> is the value of merged work: how long a senior engineer would need without AI × who it reaches (customers 3, the team 2, internal systems 1.5, only developers 1) × what it is (feature, fix or speed-up 1, refactor 0.7, tests 0.6, docs or chores 0.4, dependency bumps 0.3). Claude scores each PR; everything on this page is counted by plain code. A small fix is about 3 J, a solid feature 30 to 100 J.</div>
 <div><b>Typical day</b> is the middle value over the days someone merged anything, so one huge day doesn't skew it. <b>Typical PR</b> is the same for single PRs.</div>
 <div><b>Needed a fix after</b>: PRs merged ${SETTLE_DAYS}+ days ago that were reverted or fixed again by a later PR pointing back at them. Lower is better; it only sees fixes that link the PR.</div>
-<div><b>Built with Claude</b>: PRs with a commit that credits Claude. Work done with AI that leaves no credit in the commits isn't counted.</div>
 </div></body></html>`;
 }

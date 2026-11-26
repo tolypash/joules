@@ -78,14 +78,14 @@ test("release and promotion PRs are told apart from real work", () => {
   expect(isRelease(p("Release 2.7", "feat/x"))).toBe(true);
 });
 
-test("stats count weeks, typical day and PR, rework and Claude-credited PRs", () => {
+test("stats count weeks, typical day and PR, and rework", () => {
   const now = new Date("2026-11-26T12:00:00Z").getTime();
   const s = (joules: number, daysAgo: number, extra: Partial<Scored> = {}): Scored => ({
     repo: "o/r", number: joules, title: "", author: "ann", url: "", merged_at: new Date(now - daysAgo * 86_400_000).toISOString(), score: { ...stamp, joules }, joules, ...extra,
   });
   const [row] = statsOf(
     [
-      s(10, 1, { ai: true }),
+      s(10, 1),
       s(20, 1),
       s(5, 20, { settlement: { reverted: false, fixes: [7] } }),
       s(30, 20, { settlement: { reverted: false, fixes: [] } }),
@@ -95,6 +95,6 @@ test("stats count weeks, typical day and PR, rework and Claude-credited PRs", ()
     { ann: "Ann" },
     now,
   );
-  expect(row).toMatchObject({ name: "Ann", joules: 65, prs: 4, activeDays: 2, typicalDay: 33, typicalPr: 15, rework: { fixed: 1, settled: 2 }, ai: 1 });
+  expect(row).toMatchObject({ name: "Ann", joules: 65, prs: 4, activeDays: 2, typicalDay: 33, typicalPr: 15, rework: { fixed: 1, settled: 2 } });
   expect(row!.weekly).toEqual([0, 35, 0, 30]);
 });

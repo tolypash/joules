@@ -6,7 +6,7 @@ import { gh, isRelease, type Pull, pullContext } from "./github.ts";
 import { collect, html, leaderboard, markdown, pool } from "./report.ts";
 import { rate } from "./score.ts";
 import { settleRepo } from "./settle.ts";
-import { markAi, statsHtml, statsOf } from "./stats.ts";
+import { statsHtml, statsOf } from "./stats.ts";
 import { commentOnTickets } from "./tickets.ts";
 
 const HELP = `joules: score the value each pull request ships
@@ -14,7 +14,7 @@ const HELP = `joules: score the value each pull request ships
   joules score <owner/repo#123> [--write]      score one PR (--write puts the block in its description and posts on its tickets)
   joules report --repos a/b,c/d [--days 30]    leaderboard per engineer (--html out.html, --compare, --compact)
   joules backfill --repos a/b,c/d --days 90    score past PRs into the cache, nothing written to GitHub
-  joules stats --repos a/b,c/d [--days 30]     per engineer: weekly Joules, typical day, rework, AI share (--html out.html, --title, --names login=Name,…, --note)
+  joules stats --repos a/b,c/d [--days 30]     per engineer: weekly Joules, typical day, rework (--html out.html, --title, --names login=Name,…, --note)
   joules settle <owner/repo> [--write]         settle PRs merged 14+ days ago (reverts, follow-up fixes)
   joules action                                in GitHub Actions: scores on open and merge, settles on a schedule
 
@@ -93,7 +93,6 @@ else if (command === "backfill") {
   // Whole weeks, so the oldest bar is never a part-week that reads as a slump.
   const days = Math.max(1, Math.round(options.days / 7)) * 7;
   const scored = await collect({ ...options, days, compare: false });
-  await markAi(scored, values.cache, options.concurrency);
   const names: Record<string, string> = {};
   for (const pair of values.names.split(",").filter(Boolean)) {
     const [login, name] = pair.split("=");

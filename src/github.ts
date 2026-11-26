@@ -89,12 +89,6 @@ export async function mergedSince(repo: string, since: Date): Promise<Pull[]> {
   return out.sort((a, b) => b.merged_at!.localeCompare(a.merged_at!));
 }
 
-/** A commit on the PR credits Claude (a Co-Authored-By trailer or "Generated with Claude Code"). */
-export async function aiAssisted(repo: string, number: number): Promise<boolean> {
-  const commits = await gh<{ commit: { message: string } }[]>(`/repos/${repo}/pulls/${number}/commits?per_page=100`);
-  return commits.some((c) => /co-authored-by:[^\n]*(claude|anthropic)|generated with \[?claude/i.test(c.commit.message));
-}
-
 export const isBot = (p: Pull) => p.user.type === "Bot" || p.user.login.endsWith("[bot]");
 
 /** A release or branch-promotion PR (staging into master) carries other PRs that were scored on their own. */
