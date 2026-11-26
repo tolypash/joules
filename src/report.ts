@@ -1,14 +1,15 @@
-import { readStamp, settledNote } from "./block.ts";
-import { type Entry, keyOf, loadCache, saveEntry } from "./cache.ts";
-import { isBot, isRelease, mergedSince, type Pull, pullContext } from "./github.ts";
-import { KINDS, REACH, rate, type Score } from "./score.ts";
+import { readStamp, settledNote, what } from "./block.ts";
+import { branchContext, branchWork } from "./branches.ts";
+import { type Entry, loadCache, saveEntry } from "./cache.ts";
+import { isBot, isRelease, mergedSince, type Pull, type PullContext, pullContext } from "./github.ts";
+import { KINDS, REACH, rate } from "./score.ts";
 import { DAY, finalJoules, isSettled, SETTLE_DAYS, type Settlement, settlementOf } from "./settle.ts";
 
 export type Options = { repos: string[]; days: number; cache: string; model: string; concurrency: number; compare: boolean };
 export type Scored = Entry & { joules: number; settlement?: Settlement };
 export type Row = { author: string; day: number; week: number; total: number; prs: number; perWorkday: number; previous?: number; top: Scored[]; bottom: Scored[] };
 
-async function pool<T>(items: T[], size: number, work: (item: T) => Promise<void>): Promise<void> {
+export async function pool<T>(items: T[], size: number, work: (item: T) => Promise<void>): Promise<void> {
   let next = 0;
   const worker = async () => {
     while (next < items.length) await work(items[next++]!);
@@ -16,51 +17,64 @@ async function pool<T>(items: T[], size: number, work: (item: T) => Promise<void
   await Promise.all(Array.from({ length: size }, worker));
 }
 
-const entryOf = (repo: string, p: Pull, score: Score): Entry => ({ repo, number: p.number, title: p.title, author: p.user.login, url: p.html_url, merged_at: p.merged_at!, score });
+const entryOf = (repo: string, p: Pull): Omit<Entry, "score"> => ({ repo, number: p.number, title: p.title, author: p.user.login, url: p.html_url, merged_at: p.merged_at! });
 
-/** Every human PR (releases left out) merged in the window (twice the window with `compare`), with its Joules: from the cache, the PR's own block, or scored now. */
+/**
+ * Every human PR (releases left out) merged in the window (twice the window with `compare`), plus each
+ * person's weeks of work on branches with no PR, with their Joules: from the cache, the PR's own block,
+ * or scored now.
+ */
 export async function collect(o: Options): Promise<Scored[]> {
   const cache = loadCache(o.cache);
   const since = new Date(Date.now() - o.days * DAY * (o.compare ? 2 : 1));
   const byRepo = new Map<string, Pull[]>();
-  const missing: [string, Pull][] = [];
+  const work: { entry: Omit<Entry, "score">; context: () => Promise<PullContext> }[] = [];
+  const missing: typeof work = [];
   for (const repo of o.repos) {
     const pulls = (await mergedSince(repo, since)).filter((p) => !isBot(p) && !isRelease(p));
     byRepo.set(repo, pulls);
     for (const p of pulls) {
-      const key = keyOf(repo, p.number);
       const stamp = readStamp(p.body);
-      if (!cache.has(key) && stamp) cache.set(key, entryOf(repo, p, stamp));
-      if (!cache.has(key)) missing.push([repo, p]);
+      if (!cache.has(p.html_url) && stamp) cache.set(p.html_url, { ...entryOf(repo, p), score: stamp });
+      if (!cache.has(p.html_url)) missing.push({ entry: entryOf(repo, p), context: () => pullContext(repo, p) });
+    }
+    for (const w of await branchWork(repo, since, pulls)) {
+      const item = { entry: { repo, number: 0, title: w.title, author: w.author, url: w.url, merged_at: w.merged_at }, context: () => branchContext(repo, w) };
+      work.push(item);
+      if (!cache.has(w.url)) missing.push(item);
     }
   }
-  if (missing.length) console.error(`Scoring ${missing.length} PRs`);
+  if (missing.length) console.error(`Scoring ${missing.length} PRs and weeks of branch work`);
   let done = 0;
-  await pool(missing, o.concurrency, async ([repo, p]) => {
+  await pool(missing, o.concurrency, async ({ entry, context }) => {
     try {
-      const e = entryOf(repo, p, await rate(await pullContext(repo, p), o.model));
-      cache.set(keyOf(repo, p.number), e);
+      const e: Entry = { ...entry, score: await rate(await context(), o.model) };
+      cache.set(e.url, e);
       saveEntry(o.cache, e);
     } catch (err) {
-      console.error(`${repo}#${p.number}: ${(err as Error).message}`);
+      console.error(`${entry.url}: ${(err as Error).message}`);
     }
     if (++done % 25 === 0) console.error(`${done}/${missing.length}`);
   });
   const out: Scored[] = [];
-  for (const [repo, pulls] of byRepo) {
+  for (const [, pulls] of byRepo) {
     for (const p of pulls) {
-      const e = cache.get(keyOf(repo, p.number));
+      const e = cache.get(p.html_url);
       if (!e) continue;
       const settled = readStamp(p.body)?.final;
       const settlement = settled ?? (isSettled(p.merged_at!) ? settlementOf(p, pulls) : undefined);
       out.push({ ...e, joules: settled?.joules ?? (settlement ? finalJoules(e.score.joules, settlement) : e.score.joules), settlement });
     }
   }
+  for (const { entry } of work) {
+    const e = cache.get(entry.url);
+    if (e) out.push({ ...e, joules: e.score.joules });
+  }
   return out;
 }
 
 /** Weekdays in the last n days, so a weekend doesn't count against anyone. */
-function workdays(n: number, now = new Date()): number {
+export function workdays(n: number, now = new Date()): number {
   let count = 0;
   for (let i = 0; i < n; i++) {
     const d = new Date(now.getTime() - i * DAY).getUTCDay();
@@ -79,7 +93,7 @@ export function leaderboard(scored: Scored[], days: number, compare: boolean, no
     if (age < 7 * DAY) row.week += s.joules;
     if (age < days * DAY) {
       row.total += s.joules;
-      row.prs++;
+      if (s.number) row.prs++;
       row.top.push(s);
     } else if (row.previous !== undefined && age < 2 * days * DAY) row.previous += s.joules;
   }
@@ -102,7 +116,7 @@ export function markdown(rows: Row[], days: number): string {
 }
 
 const weights = (w: Record<string, number>) => Object.entries(w).map(([k, v]) => `${k} ${v}`).join(", ");
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+export const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
 function trend(r: Row): string {
   if (!r.previous) return r.total ? "new" : "–";
@@ -113,7 +127,7 @@ function trend(r: Row): string {
 
 function prLine(s: Scored): string {
   const after = s.settlement ? ` · ${settledNote(s.settlement)}` : "";
-  const why = `${s.score.kind} · ${s.score.reach} · ~${s.score.expert_hours}h${after}. ${s.score.reason}`;
+  const why = `${what(s.score)} · ~${s.score.expert_hours}h${after}. ${s.score.reason}`;
   return `<li><b>${s.joules} J</b> <a href="${esc(s.url)}">${esc(s.repo.split("/")[1]!)}#${s.number}</a> ${esc(s.score.summary || s.title)}<span class="why">${esc(why)}</span></li>`;
 }
 

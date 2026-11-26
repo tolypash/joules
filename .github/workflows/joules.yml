@@ -1,0 +1,29 @@
+# Joules scores its own PRs (the same file as examples/joules.yml, using this checkout).
+# Optional: LINEAR_API_KEY, or JIRA_BASE_URL + JIRA_EMAIL + JIRA_API_TOKEN, to post scores on the linked ticket.
+name: Joules
+on:
+  pull_request:
+    types: [opened, ready_for_review, closed]
+  schedule:
+    - cron: "0 6 * * *" # settles PRs merged 14+ days ago
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  joules:
+    if: github.event.action != 'closed' || github.event.pull_request.merged
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}

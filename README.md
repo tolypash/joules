@@ -30,6 +30,10 @@ Fourteen days after merge the score settles: a reverted PR drops to 0 and each f
 
 ## Set it up
 
+**Quickest:** run `bunx joules-cli init` in a repo, commit what it adds, then add the secret below. Claude Code gets the skill and the pre-PR hook from the repo, other agents read the note in AGENTS.md or CLAUDE.md, and the workflow scores anything still unscored.
+
+**Works on day one.** No history or setup needed: efficiency is measured against a typical full-time engineer before AI, 8 J a day, measured once on 39 engineers at Twenty, Novu, Formbricks and Documenso (Q4 2024). A team with its own pre-AI history can measure its own with `joules calibrate` (`--commits` if it didn't use PRs then) and pass `--baseline`.
+
 **1. The Action.** Copy [examples/joules.yml](examples/joules.yml) to `.github/workflows/joules.yml` and add one secret:
 
 - `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token` (runs on your Claude plan), or
@@ -57,9 +61,10 @@ bunx joules-cli score acme/shop#123            # one PR
 bunx joules-cli backfill --repos acme/shop,acme/api --days 90
 bunx joules-cli report --repos acme/shop,acme/api --days 30 --compare --html team.html
 bunx joules-cli settle acme/shop --write          # what the Action does daily: reverts and follow-up fixes
+bunx joules-cli stats --repos acme/shop --days 90 --html team.html   # per person: weekly Joules, typical day, rework
 ```
 
-Scores are kept in `joules-cache.jsonl` so nothing is scored twice. A report reads scores the Action already wrote in PRs, and scores the rest.
+`stats` counts over the same scores as `report` (scoring PRs not yet in the cache); the counting itself is plain code, so the same scores give the same numbers every time. Scores are kept in `joules-cache.jsonl` so nothing is scored twice. A report reads scores the Action already wrote in PRs, and scores the rest.
 
 ## Good to know
 
