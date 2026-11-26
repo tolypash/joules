@@ -48,5 +48,8 @@ export function init(dir: string): string[] {
     writeFileSync(join(dir, notes), `${text.trimEnd()}${text ? "\n" : ""}${NOTE}`);
     done.push(notes);
   }
+  // A repo that ignores .claude/ would keep these on this machine only: say so rather than fail quietly.
+  const ignored = Bun.spawnSync(["git", "check-ignore", ...done], { cwd: dir }).stdout.toString().trim();
+  if (ignored) console.error(`Git ignores ${ignored.split("\n").join(", ")}: add exceptions to .gitignore so the team gets them.`);
   return done;
 }
