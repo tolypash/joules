@@ -62,7 +62,7 @@ export type PullFile = { filename: string; additions: number; deletions: number;
 export type PullContext = { repo: string; number: number; title: string; body: string; author: string; tickets: string[]; files: PullFile[]; diff: string };
 
 /** Lockfiles, build output, vendored and generated code: listed for the model, but their diff is left out. */
-const SKIP = /(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb?|Podfile\.lock|Gemfile\.lock|Cargo\.lock|composer\.lock|poetry\.lock)$|(^|\/)(dist|build|vendor|node_modules|__generated__|generated|\.next|coverage)\/|\.(min\.js|map|snap|svg|png|jpe?g|gif|webp|ico|pdf|mp4|ttf|woff2?)$/i;
+const SKIP = /(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb?|Podfile\.lock|Gemfile\.lock|Cargo\.lock|composer\.lock|poetry\.lock)$|(^|\/)(dist|build|vendor|node_modules|__generated__|generated|\.next|coverage)\/|\.(gen|generated)\.[a-z]+$|\.(min\.js|map|snap|svg|png|jpe?g|gif|webp|ico|pdf|mp4|ttf|woff2?)$/i;
 
 const DIFF_BUDGET = 16_000;
 const PER_FILE = 2_500;

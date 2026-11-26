@@ -30,7 +30,7 @@ expert_hours: how long a senior engineer who knows this codebase well would have
 - 12: a feature touching several parts (backend, frontend, data), with edge cases
 - 30: a new integration (a payment provider, a third-party API) or a cross-system feature with migrations
 - 80: a large new product area built from scratch
-Generated code, lockfiles, vendored files, snapshots, mass renames and formatting add nothing. Copied or boilerplate code counts for the effort to adapt it, not to type it. Never above 120.
+Generated code, lockfiles, vendored files, snapshots, mass renames and formatting add nothing. Code a tool wrote from a command adds only the minutes the command took plus the edits made on top: project templates (create-next-app, expo init, framework init), CLI generators (shadcn add, ng generate, rails generate), ORM or API clients (Prisma, OpenAPI, GraphQL codegen), auto-generated migrations, icon sets. Tell it by template boilerplate, framework default files, "generated" headers and many files in a standard scaffold layout. Copied or boilerplate code counts for the effort to adapt it, not to type it. Never above 120.
 
 summary: what the PR does, in plain words a manager understands, at most 12 words.
 reason: one short sentence on why it got this score (what makes it hard, risky or valuable, or why it's small).

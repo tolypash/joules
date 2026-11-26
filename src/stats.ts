@@ -136,7 +136,7 @@ td.pace { text-align: center; border-radius: 6px; border-bottom: 2px solid #fff 
 </style></head><body>
 <h1><span>⚡</span> ${esc(o.title)}</h1>
 <div class="sub">Last ${o.days} days to ${date} · ${esc(o.repos.map((r) => r.split("/")[1]).join(", "))} · release PRs and bots left out</div>
-<div class="plain">Every piece of work an engineer finishes earns points, called <b>Joules</b>, for what it is worth: roughly how many hours a good engineer would have needed for it without AI, counted three times when customers feel it. <b>Efficiency</b> compares each person's points per working day with what ${o.baseline === BASELINE ? "a typical engineer delivered" : "this team delivered"} before AI tools: 100% is the same output as before, 300% is three times as much.</div>
+<div class="plain">Every piece of work an engineer finishes gets a score, called <b>Joules</b>: roughly how many hours a good engineer would have needed for it without AI. Work customers use weighs more than behind-the-scenes clean-up. <b>Efficiency</b> compares each person's Joules per working day with what ${o.baseline === BASELINE ? "a typical engineer delivered" : "this team delivered"} before AI tools: 100% is the same output as before, 300% is three times as much.</div>
 ${o.note ? `<div class="note">${esc(o.note)}</div>` : ""}
 <table><tr><th>Engineer</th><th>Joules<br>(value shipped)</th><th>PRs</th><th>Days<br>shipping</th><th>Typical<br>day (J)</th><th>Typical<br>PR (J)</th><th>Needed a<br>fix after</th><th>Efficiency</th><th style="text-align:left">Joules per week, oldest to newest</th></tr>${body}</table>
 <div class="how">
