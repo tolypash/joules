@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "bin": { "joules": "src/cli.ts" },
-  "files": ["src", "skill", "hooks", "examples"],
+  "files": ["src", "skill", "hooks"],
   "repository": "github:tolypash/joules",
   "scripts": { "check": "tsc --noEmit && bun test" },
   "devDependencies": { "@types/bun": "latest", "typescript": "^5.6.0" }

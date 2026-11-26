@@ -39,7 +39,6 @@ export type Pull = {
   body: string | null;
   html_url: string;
   user: { login: string; type: string };
-  draft?: boolean;
   merged_at: string | null;
   updated_at: string;
   head: { ref: string };
