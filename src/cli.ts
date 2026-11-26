@@ -61,6 +61,8 @@ async function action() {
   if (isRelease(pr)) return console.log("A release PR: the PRs it carries are scored on their own.");
   if (event.action !== "closed" && pr.draft) return console.log("A draft: scored when it's ready for review.");
   if (event.action !== "closed" && readStamp(pr.body)?.stage === "open") return console.log("Already scored on open; it's scored again on merge.");
+  // Until the secret is added, say so instead of failing every PR's check.
+  if (!process.env.CLAUDE_CODE_OAUTH_TOKEN && !process.env.ANTHROPIC_API_KEY) return console.log("No Claude secret yet: add CLAUDE_CODE_OAUTH_TOKEN (claude setup-token) or ANTHROPIC_API_KEY to the repo.");
   return scorePull(repo, pr, true);
 }
 
