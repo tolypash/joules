@@ -30,11 +30,7 @@ async function mergedBetween(repo: string, from: Date, to: Date): Promise<Found[
   for (let start = from; start <= to; start = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1))) {
     const end = new Date(Math.min(to.getTime(), Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0)));
     const range = `${start.toISOString().slice(0, 10)}..${end.toISOString().slice(0, 10)}`;
-    for (let page = 1; page <= 10; page++) {
-      const res = await gh<{ items: Found[] }>(`/search/issues?q=${encodeURIComponent(`repo:${repo} is:pr is:merged merged:${range}`)}&per_page=100&page=${page}`);
-      out.push(...res.items);
-      if (res.items.length < 100) break;
-    }
+    out.push(...(await pages<Found, { items: Found[] }>(`/search/issues?q=${encodeURIComponent(`repo:${repo} is:pr is:merged merged:${range}`)}`, (r) => r.items, 10)));
   }
   return out;
 }
@@ -62,7 +58,7 @@ async function commitUnits(repo: string, from: Date, to: Date): Promise<Unit[]> 
   const commits = new Map<string, Commit>();
   for (const branch of [base, "master", "main"].filter((b, i, all) => names.has(b) && all.indexOf(b) === i)) {
     for (const c of await pages<Commit>(`/repos/${repo}/commits?sha=${branch}&since=${from.toISOString()}&until=${to.toISOString()}`)) {
-      if (c.parents.length === 1 && c.author && c.author.type !== "Bot" && !c.author.login.endsWith("[bot]")) commits.set(c.sha, c);
+      if (c.parents.length === 1 && c.author && !isBot({ user: c.author })) commits.set(c.sha, c);
     }
   }
   const out: Unit[] = [];

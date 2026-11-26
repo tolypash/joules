@@ -1,4 +1,4 @@
-import { filesAndDiff, gh, isIntegrationBranch, pages, type PullContext, type PullFile } from "./github.ts";
+import { filesAndDiff, gh, isBot, isIntegrationBranch, pages, type PullContext, type PullFile } from "./github.ts";
 import { DAY } from "./settle.ts";
 
 /**
@@ -19,7 +19,7 @@ export async function branchWork(repo: string, since: Date, merged: Set<string>)
   for (const branch of branches) {
     const ahead = await pages<Commit, { commits: Commit[] }>(`/repos/${repo}/compare/${encodeURIComponent(base)}...${encodeURIComponent(branch)}`, (r) => r.commits);
     for (const c of ahead) {
-      if (c.parents.length !== 1 || merged.has(c.sha) || new Date(c.commit.author.date) < since || !c.author || c.author.type === "Bot") continue;
+      if (c.parents.length !== 1 || merged.has(c.sha) || new Date(c.commit.author.date) < since || !c.author || isBot({ user: c.author })) continue;
       const seen = found.get(c.sha) ?? { ...c, on: new Set<string>() };
       seen.on.add(branch);
       found.set(c.sha, seen);
