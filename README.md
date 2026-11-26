@@ -30,8 +30,7 @@ Fourteen days after merge the score settles: a reverted PR drops to 0 and each f
 
 ## Set it up
 
-**Quickest:** run `bunx joules-cli init` in a repo and commit what it adds. Every agent that works there then scores its PRs with no setup of its own: Claude Code picks up the skill and the pre-PR hook from the repo's `.claude/`, other agents read the note in `AGENTS.md` or `CLAUDE.md`, and the GitHub workflow scores whatever still arrives unscored. Then add the secret below.
-
+**Quickest:** run `bunx joules-cli init` in a repo, commit what it adds, then add the secret below. Claude Code gets the skill and the pre-PR hook from the repo, other agents read the note in AGENTS.md or CLAUDE.md, and the workflow scores anything still unscored.
 
 **1. The Action.** Copy [examples/joules.yml](examples/joules.yml) to `.github/workflows/joules.yml` and add one secret:
 

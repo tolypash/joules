@@ -20,6 +20,6 @@ for i, a in enumerate(args):
                 sys.exit(0)
         except OSError:
             pass
-sys.stderr.write("Joules: this PR has no score yet. Read .claude/skills/joules/SKILL.md (the joules skill), score the branch and add its block at the end of the PR body, then run gh pr create again.\n")
+sys.stderr.write("Joules: this PR has no score yet. Use the joules skill (.claude/skills/joules/ in the repo, or ~/.claude/skills/joules/) to score the branch and add its block at the end of the PR body, then run gh pr create again.\n")
 sys.exit(2)
 '
