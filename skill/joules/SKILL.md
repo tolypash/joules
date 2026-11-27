@@ -39,7 +39,7 @@ Use these when asked how an engineer or a team is doing. Add up the Joules in th
 | Before AI: 71 engineers, Q4 2024 | 5 | **8.2** | 13.2 | 18 | 15.3 J |
 | With AI: 128 engineers, Aug to Oct 2026 | 12.5 | **21.7** | 40.7 | 75.5 | 27.1 J |
 
-Both measured on the same eight public product repos (Twenty, Novu, Formbricks, Documenso, n8n, Langfuse, Infisical and Plane), 30 sampled PRs per engineer.
+Both are measured on the same eight public product repos (Twenty, Novu, Formbricks, Documenso, n8n, Langfuse, Infisical and Plane), with 30 sampled PRs per engineer.
 
 So with AI the median engineer ships about 2.6× the Joules of the median engineer before AI, and the median PR is worth about 1.8× as much. The raw numbers are in [data/](https://github.com/tolypash/joules/tree/main/data).
 
