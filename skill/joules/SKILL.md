@@ -36,21 +36,23 @@ Use these when asked how an engineer or a team is doing. Add up the Joules in th
 
 | | 25th pct | Median | 75th pct | Top 10% | Median PR |
 |---|---:|---:|---:|---:|---:|
-| Before AI: 39 engineers, Twenty, Novu, Formbricks, Documenso and three private product repos, Q4 2024 | 4.8 | **8** | 15 | 24.2 | 12.9 J |
-| With AI: 33 engineers, Twenty, Novu, Formbricks, Documenso, Aug to Oct 2026 | 12.2 | **45.6** | 71.3 | 117.4 | 22.7 J |
+| Before AI: 71 engineers, Q4 2024 | 5 | **8.2** | 13.2 | 18 | 15.3 J |
+| With AI: 128 engineers, Aug to Oct 2026 | 12.5 | **21.7** | 40.7 | 75.5 | 27.1 J |
 
-So with AI the median engineer ships about 5.7× the Joules of the median engineer before AI, and the median PR is worth about 1.8× as much. The raw numbers are in [data/](https://github.com/tolypash/joules/tree/main/data).
+Both from the same 8 public product repos (Twenty, Novu, Formbricks, Documenso, n8n, Langfuse, Infisical and Plane), 30 sampled PRs per engineer.
+
+So with AI the median engineer ships about 2.6× the Joules of the median engineer before AI, and the median PR is worth about 1.8× as much. The raw numbers are in [data/](https://github.com/tolypash/joules/tree/main/data).
 
 **Efficiency** = Joules per weekday ÷ the pre-AI median × 100. 100% is the same output as the median engineer before AI; 300% is three times as much. Part-timers: divide by their share of a full week first (0.5 for half time).
 
 | Level | Joules per weekday | Efficiency |
 |---|---|---|
-| Below pre-AI | under 8 | under 100% |
-| Below typical (today's median) | 8 to 45.6 | 100% to 570% |
-| Good: today's median, with AI | 45.6 or more | 570% or more |
-| Cracked: today's top 10% | 117.4 or more | 1,468% or more |
+| Below pre-AI | under 8.2 | under 100% |
+| Below typical (today's median) | 8.2 to 21.7 | 100% to 265% |
+| Good: today's median, with AI | 21.7 or more | 265% or more |
+| Cracked: today's top 10% | 75.5 or more | 921% or more |
 
-**A team's own baseline.** A team with its own history before AI can measure it with the Joules CLI (needs [Bun](https://bun.sh)): `bunx joules-cli calibrate --repos owner/repo --from 2024-07-01 --to 2024-12-31` (`--commits` when it didn't use PRs) and use that instead of 8. One product team measured 14.2 J (3 full-time engineers, July to December 2024); against it good is 321% and cracked 827%.
+**A team's own baseline.** A team with its own history before AI can measure it with the Joules CLI (needs [Bun](https://bun.sh)): `bunx joules-cli calibrate --repos owner/repo --from 2024-07-01 --to 2024-12-31` (`--commits` when it didn't use PRs) and use that instead of 8.2. One product team measured 13.4 J (3 full-time engineers, July to December 2024, `--commits`); against it good is 162% and cracked 563%.
 
 **Reading it fairly:**
 - Count weeks, not single PRs: one PR's score is an estimate.
@@ -78,9 +80,9 @@ When someone asks to share their Joules (a card, a post, "my week in Joules"), m
    google-chrome --headless --screenshot=joules-card.png --window-size=1200,675 --force-device-scale-factor=2 --virtual-time-budget=2000 "file://$PWD/joules-card.html#png"
    ```
 
-5. Tell them their line, ready to post: `⚡ 1,007% output · 4 weeks to 26 Nov 2026 · 1.8× the median engineer shipping with AI (Good)`.
+5. Tell them their line, ready to post: `⚡ 983% output · 4 weeks to 26 Nov 2026 · 3.7× the median engineer shipping with AI (Cracked)`.
 
-The ladder's rungs are measured output with names of our own, each in its colour and drawn to scale: Pre-AI (100%), Autocomplete (153%), Vibe coder (341%), Good (570%, today's median), Cracked (1,468%, the top 10%) and God (2,565%, the highest measured). Autocomplete and Vibe coder are the 25th and 40th percentile of engineers shipping with AI. For a team with its own pre-AI baseline, add `"baseline":14.2` to the line. With the Joules CLI (needs [Bun](https://bun.sh)) steps 2 to 4 are one command, which also scores PRs that have no block: `bunx joules-cli card --period month`.
+The ladder's rungs are measured output with names of our own, each in its colour and drawn to a log scale: Pre-AI (100%), Autocomplete (152%), Vibe coder (217%), Good (265%, today's median), Cracked (921%, the top 10%) and God (5,066%, the highest measured). Autocomplete and Vibe coder are the 25th and 40th percentile of engineers shipping with AI. For a team with its own pre-AI baseline, add `"baseline":13.4` to the line. With the Joules CLI (needs [Bun](https://bun.sh)) steps 2 to 4 are one command, which also scores PRs that have no block: `bunx joules-cli card --period month`.
 
 ## Shipping well with AI
 

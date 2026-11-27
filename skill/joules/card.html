@@ -40,13 +40,13 @@
 </main>
 <script>
 // The numbers on the card: replace this one line. `bars` is Joules over time, oldest first (per day, or per week for a year).
-// Optional `baseline`: a team's own Joules per weekday before AI, in place of the measured 8.
+// Optional `baseline`: a team's own Joules per weekday before AI, in place of the measured 8.2.
 const DATA = {"who":"@ada","period":"4 weeks to 26 Nov 2026","joules":1612,"weekdays":20,"prs":41,"bars":[64,0,0,38,112,71,0,96,0,12,45,134,88,57,120,0,0,76,41,163,92,68,9,0,54,108,85,79]};
 
 // Joules per weekday, measured (data/): the median engineer before AI, then engineers shipping with AI at the
 // 25th and 40th percentile, the median, the top 10% and the highest. The names are ours.
-const LADDER = [["Pre-AI", 8], ["Autocomplete", 12.2], ["Vibe coder", 27.3], ["Good", 45.6], ["Cracked", 117.4], ["God", 205.2]];
-const MEDIAN = 45.6;
+const LADDER = [["Pre-AI", 8.2], ["Autocomplete", 12.5], ["Vibe coder", 17.8], ["Good", 21.7], ["Cracked", 75.5], ["God", 415.4]];
+const MEDIAN = 21.7;
 const COLORS = { "Pre-AI": "#f87171", Autocomplete: "#fb923c", "Vibe coder": "#facc15", Good: "#4ade80", Cracked: "#c084fc", God: "#67e8f9" };
 const LINK = "github.com/tolypash/joules";
 const W = 1200;
@@ -76,9 +76,10 @@ function draw() {
   const digits = whole(pct(perWeekday));
   const size = digits.length <= 5 ? 196 : digits.length === 6 ? 168 : 144;
   const track = W - 2 * PAD;
-  // The line is to scale: twice the output sits twice as far along.
+  // The line is to scale, a log scale: each doubling of output is the same step, since the top rung is ~50× the first.
+  const start = rungs[0].v / 1.5;
   const end = Math.max(rungs.at(-1).v * 1.09, perWeekday * 1.04);
-  const at = (v) => PAD + (track * v) / end;
+  const at = (v) => PAD + (track * Math.log(Math.max(v, start) / start)) / Math.log(end / start);
   const you = at(perWeekday);
 
   // Joules over time, as a skyline on the right, the best bar at full strength.
