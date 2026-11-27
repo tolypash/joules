@@ -18,7 +18,11 @@ export async function branchWork(repo: string, since: Date, pulls: Pull[]): Prom
   const branches = (await pages<{ name: string }>(`/repos/${repo}/branches`)).map((b) => b.name).filter((b) => b !== base && !withPr.has(b) && !isIntegrationBranch(b));
   const found = new Map<string, Commit & { on: Set<string> }>();
   for (const branch of branches) {
-    const ahead = await pages<Commit, { commits: Commit[] }>(`/repos/${repo}/compare/${encodeURIComponent(base)}...${encodeURIComponent(branch)}`, (r) => r.commits);
+    const ahead = await pages<Commit, { commits: Commit[] }>(`/repos/${repo}/compare/${encodeURIComponent(base)}...${encodeURIComponent(branch)}`, (r) => r.commits).catch((e) => {
+      // A branch with its own history (screenshots kept for a PR) shares nothing with the default branch: no work to count.
+      if (String(e).includes("No common ancestor")) return [];
+      throw e;
+    });
     for (const c of ahead) {
       if (c.parents.length !== 1 || merged.has(c.sha) || new Date(c.commit.author.date) < since || !c.author || isBot({ user: c.author })) continue;
       const seen = found.get(c.sha) ?? { ...c, on: new Set<string>() };
