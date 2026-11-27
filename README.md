@@ -2,7 +2,7 @@
 
 See the energy your team ships.
 
-![A Joules card: 1,007% output over four weeks, 1.8× the median engineer shipping with AI](docs/card.jpg)
+![A Joules card: 983% output over four weeks, 3.7× the median engineer shipping with AI](docs/card.jpg)
 
 Joules gives every pull request a score for the value it delivers: what it does, who feels it and how hard it was. Not lines of code, not PR count. With AI writing thousands of lines in minutes, those numbers stopped meaning anything. A one-line fix to a payment bug can be worth more than a 5,000-line scaffold, and Joules says so.
 
@@ -42,12 +42,12 @@ bunx joules-cli card --period year --repos acme/shop,acme/api    # or week; any 
 It writes `joules-card.png` (when the machine has Chrome) and opens `joules-card.html`: the card, a Copy image button, and Post on X with the text already written. Or ask your agent to "share my Joules": the skill makes the same card with no CLI.
 
 - **One number: your output.** Joules per weekday as a percentage of what an engineer shipped before AI (the same efficiency the team view shows), and next to it how many times the median engineer shipping with AI that is.
-- **A colour-coded ladder, drawn to scale:** Pre-AI (100%), Autocomplete (153%), Vibe coder (341%), Good (570%, today's median), Cracked (1,468%, the top 10%) and God (2,565%, the highest measured). The card takes the colour of the rung you reached.
+- **A colour-coded ladder, drawn to a log scale:** Pre-AI (100%), Autocomplete (152%), Vibe coder (217%), Good (265%, today's median), Cracked (921%, the top 10%) and God (5,066%, the highest measured). The card takes the colour of the rung you reached.
 - **Numbers only.** No repo names and no PR titles, so it is safe to post from private work.
 - **Week, month or year:** the last 7 days, 4 weeks or 52 weeks, each with its skyline of Joules per day or per week.
 
 
-![A Cracked card: 1,847% output over 52 weeks, 3.2× the median](docs/card-cracked.jpg)
+![A Cracked card: 1,802% output over 52 weeks, 6.8× the median](docs/card-cracked.jpg)
 
 ## Set it up
 
@@ -59,10 +59,10 @@ It writes `joules-card.png` (when the machine has Chrome) and opens `joules-card
 
 | Joules per weekday, full-time engineers | Median | Top 10% |
 |---|---:|---:|
-| Before AI (39 engineers, Q4 2024) | 8 | 24.2 |
-| With AI (33 engineers, Aug to Oct 2026) | 45.6 | 117.4 |
+| Before AI (71 engineers, Q4 2024) | 8.2 | 18 |
+| With AI (128 engineers, Aug to Oct 2026) | 21.7 | 75.5 |
 
-Efficiency is Joules per weekday against the pre-AI median: 100% is the same output as before AI, good today is 570%, cracked (the top 10%) 1,468%. The full table, a team's own baseline and how to read it fairly are in [the skill](skill/joules/SKILL.md#whats-good-the-measured-numbers); the raw numbers in [data/](data).
+Efficiency is Joules per weekday against the pre-AI median: 100% is the same output as before AI, good today is 265%, cracked (the top 10%) 921%. The full table, a team's own baseline and how to read it fairly are in [the skill](skill/joules/SKILL.md#whats-good-the-measured-numbers); the raw numbers in [data/](data).
 
 **The CLI.** Needs [Bun](https://bun.sh), the [Claude Code CLI](https://docs.claude.com/claude-code) signed in, and `gh` signed in (or `GITHUB_TOKEN`).
 
