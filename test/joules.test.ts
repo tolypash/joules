@@ -143,6 +143,10 @@ test("the levels are the measured percentiles", () => {
   const ai = (p: number) => percentile(perWeekday("ai-era-2026.tsv"), p);
   expect(card).toContain(`const LADDER = [["Pre-AI", ${BASELINE}], ["Autocomplete", ${ai(0.25)}], ["Vibe coder", ${ai(0.4)}], ["Good", ${GOOD}], ["Cracked", ${GREAT}], ["God", ${ai(1)}]];`);
   expect(card).toContain(`const MEDIAN = ${GOOD};`);
+  // So do the README and the skill, in words.
+  const pct = (v: number) => `${Math.round((v / BASELINE) * 100).toLocaleString("en-US")}%`;
+  const ladder = `Pre-AI (100%), Autocomplete (${pct(ai(0.25))}), Vibe coder (${pct(ai(0.4))}), Good (${pct(GOOD)}, today's median), Cracked (${pct(GREAT)}, the top 10%) and God (${pct(ai(1))}, the highest measured)`;
+  for (const doc of ["../README.md", "../skill/joules/SKILL.md"]) expect(readFileSync(new URL(doc, import.meta.url), "utf8")).toContain(ladder);
 });
 
 test("the share card counts one person's window: total, weekdays, PRs and a bar per day or week", () => {

@@ -62,8 +62,6 @@ It writes `joules-card.png` (when the machine has Chrome) and opens `joules-card
 | Before AI (71 engineers, Q4 2024) | 8.2 | 18 |
 | With AI (128 engineers, Aug to Oct 2026) | 21.7 | 75.5 |
 
-Both from the same 8 public product repos: Twenty, Novu, Formbricks, Documenso, n8n, Langfuse, Infisical and Plane.
-
 Efficiency is Joules per weekday against the pre-AI median: 100% is the same output as before AI, good today is 265%, cracked (the top 10%) 921%. The full table, a team's own baseline and how to read it fairly are in [the skill](skill/joules/SKILL.md#whats-good-the-measured-numbers); the raw numbers in [data/](data).
 
 **The CLI.** Needs [Bun](https://bun.sh), the [Claude Code CLI](https://docs.claude.com/claude-code) signed in, and `gh` signed in (or `GITHUB_TOKEN`).

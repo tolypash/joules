@@ -55,7 +55,7 @@ const PAD = 64;
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const whole = (n) => Math.round(n).toLocaleString("en-US");
-/** One decimal under 100 (45.6), none above (117). */
+/** One decimal under 100 (21.7), none above (415). */
 const short = (n) => (n >= 100 ? whole(n) : String(Math.round(n * 10) / 10));
 
 // Output: Joules per weekday as a percentage of the median engineer before AI (or the team's own pre-AI line, `baseline`).
@@ -76,7 +76,8 @@ function draw() {
   const digits = whole(pct(perWeekday));
   const size = digits.length <= 5 ? 196 : digits.length === 6 ? 168 : 144;
   const track = W - 2 * PAD;
-  // The line is to scale, a log scale: each doubling of output is the same step, since the top rung is ~50× the first.
+  // A log scale: each doubling of output is the same step, so the low rungs don't crowd when the top one is far out.
+  // It starts a little below the first rung to leave the grey stretch before it; anything lower sits at the start.
   const start = rungs[0].v / 1.5;
   const end = Math.max(rungs.at(-1).v * 1.09, perWeekday * 1.04);
   const at = (v) => PAD + (track * Math.log(Math.max(v, start) / start)) / Math.log(end / start);
