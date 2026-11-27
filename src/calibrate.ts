@@ -24,13 +24,15 @@ export function weekdaysBetween(from: Date, to: Date): number {
   return count;
 }
 
-/** Merged PRs in the window, a month at a time so no search passes GitHub's 1,000-result cap. */
+/** Merged PRs in the window, a week at a time: a search stops at 1,000 results, and busy repos merge more than that in a month. */
 async function mergedBetween(repo: string, from: Date, to: Date): Promise<Found[]> {
   const out: Found[] = [];
-  for (let start = from; start <= to; start = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1))) {
-    const end = new Date(Math.min(to.getTime(), Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0)));
+  for (let start = from; start <= to; start = new Date(start.getTime() + 7 * DAY)) {
+    const end = new Date(Math.min(to.getTime(), start.getTime() + 6 * DAY));
     const range = `${start.toISOString().slice(0, 10)}..${end.toISOString().slice(0, 10)}`;
-    out.push(...(await pages<Found, { items: Found[] }>(`/search/issues?q=${encodeURIComponent(`repo:${repo} is:pr is:merged merged:${range}`)}`, (r) => r.items, 10)));
+    const found = await pages<Found, { items: Found[] }>(`/search/issues?q=${encodeURIComponent(`repo:${repo} is:pr is:merged merged:${range}`)}`, (r) => r.items, 10);
+    if (found.length === 1000) console.error(`${repo} ${range}: hit GitHub's 1,000-result search cap, some merged PRs may be missing`);
+    out.push(...found);
   }
   return out;
 }
